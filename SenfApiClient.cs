@@ -195,19 +195,37 @@ public class SenfApiException : Exception
 
 public class EnvFileResponse
 {
+    [JsonPropertyName("id")]
     public int Id { get; set; }
+
+    [JsonPropertyName("name")]
     public string? Name { get; set; }
+
+    [JsonPropertyName("content")]
     public string? Content { get; set; }
+
+    [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; }
+
+    [JsonPropertyName("updatedAt")]
     public DateTime UpdatedAt { get; set; }
 }
 
 public class SshKeyResponse
 {
+    [JsonPropertyName("id")]
     public int Id { get; set; }
+
+    [JsonPropertyName("publicKey")]
     public string? PublicKey { get; set; }
+
+    [JsonPropertyName("fingerprint")]
     public string? Fingerprint { get; set; }
+
+    [JsonPropertyName("name")]
     public string? Name { get; set; }
+
+    [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; }
 }
 
