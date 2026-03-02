@@ -67,6 +67,53 @@ public class SenfApiClient
         }
     }
 
+    public async Task<SshKeysListResponse?> GetSshKeysAsync()
+    {
+        var response = await SendWithAuthRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, "/keys"));
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new SenfApiException("Failed to get SSH keys", response.StatusCode, errorContent);
+        }
+
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<SshKeysListResponse>(json);
+    }
+
+    public async Task<SshKeyResponse?> CreateSshKeyAsync(string publicKey, string name)
+    {
+        var body = JsonSerializer.Serialize(new { publicKey, name });
+        var response = await SendWithAuthRetryAsync(() =>
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "/keys");
+            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+            return request;
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new SenfApiException("Failed to create SSH key", response.StatusCode, errorContent);
+        }
+
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<SshKeyResponse>(json);
+    }
+
+    public async Task DeleteSshKeyAsync(int keyId)
+    {
+        var response = await SendWithAuthRetryAsync(() =>
+            new HttpRequestMessage(HttpMethod.Delete, $"/keys?keyId={keyId}"));
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new SenfApiException("Failed to delete SSH key", response.StatusCode, errorContent);
+        }
+    }
+
     private async Task<HttpResponseMessage> SendWithAuthRetryAsync(Func<HttpRequestMessage> requestFactory)
     {
         var firstAttempt = requestFactory();
@@ -152,4 +199,18 @@ public class EnvFileResponse
     public string? Content { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+public class SshKeyResponse
+{
+    public int Id { get; set; }
+    public string? PublicKey { get; set; }
+    public string? Fingerprint { get; set; }
+    public string? Name { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class SshKeysListResponse
+{
+    public List<SshKeyResponse> Keys { get; set; } = new();
 }

@@ -97,6 +97,38 @@ senf pull
 
 This command must be run from the project directory or a subdirectory of the project's base path. The downloaded file will overwrite your local .env file.
 
+### Manage SSH Keys
+
+List all SSH public keys registered on the server:
+
+```bash
+senf key list
+```
+
+Add a new SSH public key:
+
+```bash
+senf key add <public-key-path> <key-name>
+```
+
+Example:
+
+```bash
+senf key add ~/.ssh/id_rsa.pub "my-laptop"
+```
+
+Delete an SSH key by ID:
+
+```bash
+senf key delete <key-id>
+```
+
+Example:
+
+```bash
+senf key delete 42
+```
+
 ### View Help
 
 Display available commands:
@@ -122,20 +154,26 @@ cd C:\Projects\MyApp
 senf init .env MyApp --api-url "http://192.168.1.100:5227"
 ```
 
-3. Create your .env file:
+3. (Optional) Register your SSH public key with the server:
+
+```bash
+senf key add C:\Users\developer\.ssh\id_rsa.pub developer-desktop
+```
+
+4. Create your .env file:
 
 ```
 DATABASE_URL=postgresql://localhost/mydb
 API_KEY=secret_key_here
 ```
 
-4. Push to the server:
+5. Push to the server:
 
 ```bash
 senf push
 ```
 
-5. On another machine, initialize with the same API URL and pull:
+6. On another machine, initialize with the same API URL and pull:
 
 ```bash
 cd C:\Projects\MyApp

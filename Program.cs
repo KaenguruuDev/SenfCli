@@ -86,6 +86,71 @@ public static class Program
 		return 0;
 	}
 
+	private static async Task<int> HandleKey(string[] args)
+	{
+		if (args.Length < 2)
+		{
+			Console.Error.WriteLine("✗ Usage: senf key <list|add|delete> [options]");
+			Console.Error.WriteLine("  senf key list                              List all SSH keys");
+			Console.Error.WriteLine("  senf key add <path> <name>                 Add an SSH public key");
+			Console.Error.WriteLine("  senf key delete <key-id>                   Delete an SSH key by ID");
+			return 1;
+		}
+
+		var subcommand = args[1].ToLower();
+
+		return subcommand switch
+		{
+			"list" => await HandleKeyList(),
+			"add" => await HandleKeyAdd(args),
+			"delete" => await HandleKeyDelete(args),
+			_ => InvalidKeySubcommand(subcommand)
+		};
+	}
+
+	private static async Task<int> HandleKeyList()
+	{
+		await CommandHandlers.ListSshKeys();
+		return 0;
+	}
+
+	private static async Task<int> HandleKeyAdd(string[] args)
+	{
+		if (args.Length < 4)
+		{
+			Console.Error.WriteLine("✗ Usage: senf key add <public-key-path> <name>");
+			return 1;
+		}
+
+		await CommandHandlers.AddSshKey(args[2], args[3]);
+		return 0;
+	}
+
+	private static async Task<int> HandleKeyDelete(string[] args)
+	{
+		if (args.Length < 3)
+		{
+			Console.Error.WriteLine("✗ Usage: senf key delete <key-id>");
+			return 1;
+		}
+
+		if (!int.TryParse(args[2], out var keyId))
+		{
+			Console.Error.WriteLine("✗ Invalid key ID. Must be a number.");
+			return 1;
+		}
+
+		await CommandHandlers.DeleteSshKey(keyId);
+		return 0;
+	}
+
+	private static int InvalidKeySubcommand(string subcommand)
+	{
+		Console.Error.WriteLine($"✗ Unknown key subcommand: {subcommand}");
+		Console.Error.WriteLine("Use 'senf key list', 'senf key add', or 'senf key delete'");
+		return 1;
+	}
+
 	private static int PrintUsage()
 	{
 		Console.WriteLine("""
@@ -99,12 +164,19 @@ public static class Program
 		                    config <username> <ssh-key-path>      Configure SSH credentials
 		                    push                                   Push current env file to the server
 		                    pull                                   Pull env file from the server
+		                    key                                    Manage SSH keys
+		                      list                                 List all SSH keys
+		                      add <path> <name>                    Add an SSH public key
+		                      delete <key-id>                      Delete an SSH key by ID
 		                    help                                   Show this help message
 
 		                  Examples:
 		                    senf init .env my-project
 		                    senf init .env my-project --api-url http://api.example.com:5227
 		                    senf config john ~/.ssh/id_rsa
+		                    senf key list
+		                    senf key add ~/.ssh/id_rsa.pub john-desktop
+		                    senf key delete 42
 		                    senf push
 		                    senf pull
 		                  """);

@@ -192,4 +192,150 @@ public class CommandHandlers
             Environment.Exit(1);
         }
     }
+
+    public static async Task ListSshKeys()
+    {
+        try
+        {
+            var config = Config.Load();
+            var project = config.GetCurrentProject();
+
+            if (project == null)
+            {
+                ConsoleHelper.WriteError("No project found for current directory.");
+                ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
+                Environment.Exit(1);
+            }
+
+            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            {
+                ConsoleHelper.WriteError("SSH credentials not configured.");
+                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                Environment.Exit(1);
+            }
+
+            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
+            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+
+            var response = await client.GetSshKeysAsync();
+
+            if (response?.Keys == null || response.Keys.Count == 0)
+            {
+                ConsoleHelper.WriteInfo("No SSH keys configured");
+                return;
+            }
+
+            ConsoleHelper.WriteSuccess($"Found {response.Keys.Count} SSH key(s):");
+            foreach (var key in response.Keys)
+            {
+                Console.WriteLine($"  ID: {key.Id}");
+                Console.WriteLine($"  Name: {key.Name}");
+                Console.WriteLine($"  Fingerprint: {key.Fingerprint}");
+                Console.WriteLine($"  Created: {key.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine();
+            }
+        }
+        catch (SenfApiException ex)
+        {
+            ConsoleHelper.WriteError(ex.Message);
+            Environment.Exit(1);
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error listing SSH keys: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    public static async Task AddSshKey(string publicKeyPath, string keyName)
+    {
+        try
+        {
+            var config = Config.Load();
+            var project = config.GetCurrentProject();
+
+            if (project == null)
+            {
+                ConsoleHelper.WriteError("No project found for current directory.");
+                ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
+                Environment.Exit(1);
+            }
+
+            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            {
+                ConsoleHelper.WriteError("SSH credentials not configured.");
+                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                Environment.Exit(1);
+            }
+
+            if (!File.Exists(publicKeyPath))
+            {
+                ConsoleHelper.WriteError($"Public key file not found: {publicKeyPath}");
+                Environment.Exit(1);
+            }
+
+            var publicKeyContent = File.ReadAllText(publicKeyPath);
+
+            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
+            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+
+            var response = await client.CreateSshKeyAsync(publicKeyContent, keyName);
+
+            if (response != null)
+            {
+                ConsoleHelper.WriteSuccess($"SSH key '{keyName}' added successfully");
+                ConsoleHelper.WriteDetail($"ID: {response.Id}");
+                ConsoleHelper.WriteDetail($"Fingerprint: {response.Fingerprint}");
+            }
+        }
+        catch (SenfApiException ex)
+        {
+            ConsoleHelper.WriteError(ex.Message);
+            Environment.Exit(1);
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error adding SSH key: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    public static async Task DeleteSshKey(int keyId)
+    {
+        try
+        {
+            var config = Config.Load();
+            var project = config.GetCurrentProject();
+
+            if (project == null)
+            {
+                ConsoleHelper.WriteError("No project found for current directory.");
+                ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
+                Environment.Exit(1);
+            }
+
+            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            {
+                ConsoleHelper.WriteError("SSH credentials not configured.");
+                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                Environment.Exit(1);
+            }
+
+            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
+            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+
+            await client.DeleteSshKeyAsync(keyId);
+            ConsoleHelper.WriteSuccess($"SSH key {keyId} deleted successfully");
+        }
+        catch (SenfApiException ex)
+        {
+            ConsoleHelper.WriteError(ex.Message);
+            Environment.Exit(1);
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error deleting SSH key: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
 }
