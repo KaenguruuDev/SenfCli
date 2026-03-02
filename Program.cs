@@ -8,7 +8,7 @@ public static class Program
 	{
 		// Set UTF-8 encoding for emoji support
 		Console.OutputEncoding = Encoding.UTF8;
-		
+
 		try
 		{
 			if (args.Length == 0)
@@ -40,11 +40,22 @@ public static class Program
 	{
 		if (args.Length < 3)
 		{
-			await Console.Error.WriteLineAsync("✗ Usage: senf init <path-to-env> <project-name>");
+			await Console.Error.WriteLineAsync("✗ Usage: senf init <path-to-env> <project-name> [--api-url <url>]");
 			return 1;
 		}
 
-		await CommandHandlers.Init(args[1], args[2]);
+		var apiUrl = "http://localhost:5227";
+
+		for (int i = 3; i < args.Length - 1; i++)
+		{
+			if (args[i] != "--api-url")
+				continue;
+
+			apiUrl = args[i + 1];
+			break;
+		}
+
+		await CommandHandlers.Init(args[1], args[2], apiUrl);
 		return 0;
 	}
 
@@ -64,24 +75,14 @@ public static class Program
 	{
 		if (args.Length < 3)
 		{
-			Console.Error.WriteLine("✗ Usage: senf config <username> <ssh-key-path> [--api-url <url>]");
+			Console.Error.WriteLine("✗ Usage: senf config <username> <ssh-key-path>");
 			return 1;
 		}
 
 		var username = args[1];
 		var sshKeyPath = args[2];
-		var apiUrl = "http://localhost:5227";
 
-		for (int i = 3; i < args.Length - 1; i++)
-		{
-			if (args[i] != "--api-url")
-				continue;
-
-			apiUrl = args[i + 1];
-			break;
-		}
-
-		CommandHandlers.SetCredentials(username, sshKeyPath, apiUrl);
+		CommandHandlers.SetCredentials(username, sshKeyPath);
 		return 0;
 	}
 
@@ -94,15 +95,16 @@ public static class Program
 
 		                  Commands:
 		                    init <path-to-env> <project-name>     Initialize a new project
-		                    config <username> <ssh-key-path>      Configure SSH credentials
 		                      [--api-url <url>]                   Optional API URL (default: http://localhost:5227)
+		                    config <username> <ssh-key-path>      Configure SSH credentials
 		                    push                                   Push current env file to the server
 		                    pull                                   Pull env file from the server
 		                    help                                   Show this help message
 
 		                  Examples:
 		                    senf init .env my-project
-		                    senf config john ~/.ssh/id_rsa --api-url http://api.example.com:5227
+		                    senf init .env my-project --api-url http://api.example.com:5227
+		                    senf config john ~/.ssh/id_rsa
 		                    senf push
 		                    senf pull
 		                  """);

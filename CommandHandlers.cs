@@ -4,7 +4,7 @@ using System.Net;
 
 public class CommandHandlers
 {
-    public static async Task Init(string envPath, string projectName)
+    public static async Task Init(string envPath, string projectName, string apiUrl = "http://localhost:5227")
     {
         try
         {
@@ -35,7 +35,7 @@ public class CommandHandlers
                 ProjectName = projectName,
                 EnvPath = fullPath,
                 BasePath = basePath,
-                ApiUrl = "http://localhost:5227"
+                ApiUrl = apiUrl
             };
 
             config.AddOrUpdateProject(project);
@@ -168,7 +168,7 @@ public class CommandHandlers
         }
     }
 
-    public static void SetCredentials(string username, string sshKeyPath, string apiUrl)
+    public static void SetCredentials(string username, string sshKeyPath)
     {
         try
         {
@@ -181,14 +181,6 @@ public class CommandHandlers
             var config = Config.Load();
             config.Username = username;
             config.SshKeyPath = sshKeyPath;
-
-            // If in a project directory, also update that project's API URL
-            var project = config.GetCurrentProject();
-            if (project != null)
-            {
-                project.ApiUrl = apiUrl;
-                ConsoleHelper.WriteSuccess($"Updated API URL for project '{project.ProjectName}': {apiUrl}");
-            }
 
             config.Save();
 
