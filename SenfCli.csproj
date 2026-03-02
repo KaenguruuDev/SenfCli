@@ -7,4 +7,13 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <PackageReference Include="DotMake.CommandLine" Version="3.1.0" />
+        <PackageReference Include="SSH.NET" Version="2024.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include=".github\workflows\release.yml" />
+    </ItemGroup>
+
 </Project>
