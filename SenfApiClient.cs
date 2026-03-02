@@ -1,6 +1,7 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Net;
+using System.Text.Json.Serialization;
 
 namespace SenfCli;
 
@@ -212,5 +213,6 @@ public class SshKeyResponse
 
 public class SshKeysListResponse
 {
+    [JsonPropertyName("keys")]
     public List<SshKeyResponse> Keys { get; set; } = new();
 }

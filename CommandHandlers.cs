@@ -247,7 +247,7 @@ public class CommandHandlers
         }
     }
 
-    public static async Task AddSshKey(string publicKeyPath, string keyName)
+    public static async Task AddSshKey(string publicKey, string keyName)
     {
         try
         {
@@ -268,18 +268,16 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            if (!File.Exists(publicKeyPath))
+            if (string.IsNullOrWhiteSpace(publicKey))
             {
-                ConsoleHelper.WriteError($"Public key file not found: {publicKeyPath}");
+                ConsoleHelper.WriteError("Public key cannot be empty.");
                 Environment.Exit(1);
             }
-
-            var publicKeyContent = File.ReadAllText(publicKeyPath);
 
             var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
             var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
 
-            var response = await client.CreateSshKeyAsync(publicKeyContent, keyName);
+            var response = await client.CreateSshKeyAsync(publicKey, keyName);
 
             if (response != null)
             {

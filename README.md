@@ -108,13 +108,20 @@ senf key list
 Add a new SSH public key:
 
 ```bash
-senf key add <public-key-path> <key-name>
+senf key add <name> [public-key]
 ```
 
-Example:
+The public key can be provided as an argument or read from stdin. Examples:
 
 ```bash
-senf key add ~/.ssh/id_rsa.pub "my-laptop"
+# From stdin (pipe or file redirection)
+senf key add my-laptop < ~/.ssh/id_rsa.pub
+
+# Or from pipe
+cat ~/.ssh/id_rsa.pub | senf key add my-laptop
+
+# Or as direct argument
+senf key add my-laptop "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC..."
 ```
 
 Delete an SSH key by ID:
@@ -157,7 +164,7 @@ senf init .env MyApp --api-url "http://192.168.1.100:5227"
 3. (Optional) Register your SSH public key with the server:
 
 ```bash
-senf key add C:\Users\developer\.ssh\id_rsa.pub developer-desktop
+senf key add developer-desktop < ~/.ssh/id_rsa.pub
 ```
 
 4. Create your .env file:

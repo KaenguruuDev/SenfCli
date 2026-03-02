@@ -25,6 +25,7 @@ public static class Program
 				"push" => await HandlePush(args),
 				"pull" => await HandlePull(args),
 				"config" => HandleConfig(args),
+				"key" => await HandleKey(args),
 				"help" or "-h" or "--help" => PrintUsage(),
 				_ => PrintUnknownCommand(command)
 			};
@@ -92,7 +93,7 @@ public static class Program
 		{
 			Console.Error.WriteLine("✗ Usage: senf key <list|add|delete> [options]");
 			Console.Error.WriteLine("  senf key list                              List all SSH keys");
-			Console.Error.WriteLine("  senf key add <path> <name>                 Add an SSH public key");
+			Console.Error.WriteLine("  senf key add <name> [public-key]           Add an SSH public key");
 			Console.Error.WriteLine("  senf key delete <key-id>                   Delete an SSH key by ID");
 			return 1;
 		}
@@ -116,13 +117,30 @@ public static class Program
 
 	private static async Task<int> HandleKeyAdd(string[] args)
 	{
-		if (args.Length < 4)
+		if (args.Length < 3)
 		{
-			Console.Error.WriteLine("✗ Usage: senf key add <public-key-path> <name>");
+			Console.Error.WriteLine("✗ Usage: senf key add <name> [public-key]");
+			Console.Error.WriteLine("  If public-key is not provided, it will be read from stdin");
 			return 1;
 		}
 
-		await CommandHandlers.AddSshKey(args[2], args[3]);
+		var keyName = args[2];
+		string publicKey;
+
+		if (args.Length >= 4)
+		{
+			// Key provided as argument
+			publicKey = args[3];
+		}
+		else
+		{
+			// Read from stdin
+			publicKey = await Console.In.ReadToEndAsync();
+		}
+
+		publicKey = publicKey?.Trim() ?? string.Empty;
+
+		await CommandHandlers.AddSshKey(publicKey, keyName);
 		return 0;
 	}
 
@@ -166,7 +184,7 @@ public static class Program
 		                    pull                                   Pull env file from the server
 		                    key                                    Manage SSH keys
 		                      list                                 List all SSH keys
-		                      add <path> <name>                    Add an SSH public key
+		                      add <name> [public-key]              Add an SSH public key (read from stdin if not provided)
 		                      delete <key-id>                      Delete an SSH key by ID
 		                    help                                   Show this help message
 
@@ -175,7 +193,8 @@ public static class Program
 		                    senf init .env my-project --api-url http://api.example.com:5227
 		                    senf config john ~/.ssh/id_rsa
 		                    senf key list
-		                    senf key add ~/.ssh/id_rsa.pub john-desktop
+		                    senf key add john-desktop < ~/.ssh/id_rsa.pub
+		                    senf key add john-desktop "ssh-rsa AAAA..."
 		                    senf key delete 42
 		                    senf push
 		                    senf pull
