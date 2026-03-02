@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - '*.*.*'
+      - '*'
 
 jobs:
   build:
@@ -26,15 +26,18 @@ jobs:
             -r ${{ matrix.runtime }} \
             --self-contained true \
             -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:Version=${{ github.ref_name }} \
             -o publish/${{ matrix.runtime }}
 
       - name: Zip
         run: |
           cd publish/${{ matrix.runtime }}
-          zip -r ../../myapp-${{ matrix.runtime }}.zip .
+          zip -r ../../myapp-${{ matrix.runtime }}-${{ github.ref_name }}.zip .
 
-      - name: Upload Release
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            myapp-${{ matrix.runtime }}.zip
+            myapp-${{ matrix.runtime }}-${{ github.ref_name }}.zip
+          prerelease: ${{ contains(github.ref_name, '-') }}
