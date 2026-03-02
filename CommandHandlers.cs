@@ -134,7 +134,26 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
+            if (!File.Exists(config.SshKeyPath))
+            {
+                ConsoleHelper.WriteError($"SSH key file not found: {config.SshKeyPath}");
+                Environment.Exit(1);
+            }
+
             var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
+
+            // Test the key can be loaded
+            try
+            {
+                authHandler.TestKeyLoad();
+            }
+            catch (Exception ex)
+            {
+                ConsoleHelper.WriteError($"Failed to load SSH key: {ex.Message}");
+                ConsoleHelper.WriteDetail($"Key path: {config.SshKeyPath}");
+                Environment.Exit(1);
+            }
+
             var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
 
             var envFile = await client.GetEnvFileAsync(project.ProjectName!);

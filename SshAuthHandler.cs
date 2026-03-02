@@ -22,6 +22,18 @@ public class SshAuthHandler
         _username = username;
     }
 
+    public void TestKeyLoad()
+    {
+        try
+        {
+            _ = GetKeyFile();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to load SSH key from '{_sshKeyPath}': {ex.Message}", ex);
+        }
+    }
+
     private PrivateKeyFile GetKeyFile()
     {
         _keyFile ??= new PrivateKeyFile(_sshKeyPath);
