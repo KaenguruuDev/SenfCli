@@ -9,9 +9,12 @@ permissions:
   contents: write
 
 jobs:
-  tagged-release:
-    name: "Tagged Release"
+  build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        runtime: [win-x64, linux-x64]
 
     steps:
       - uses: actions/checkout@v4
@@ -20,23 +23,42 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Publish Windows
+      - name: Publish
         run: |
-          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=${{ github.ref_name }} -o publish/win-x64
-          cd publish/win-x64
-          zip -r ../../senf-win-x64-${{ github.ref_name }}.zip .
+          dotnet publish -c Release \
+            -r ${{ matrix.runtime }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:Version=${{ github.ref_name }} \
+            -o publish/${{ matrix.runtime }}
 
-      - name: Publish Linux
+      - name: Zip
         run: |
-          dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:Version=${{ github.ref_name }} -o publish/linux-x64
-          cd publish/linux-x64
-          zip -r ../../senf-linux-x64-${{ github.ref_name }}.zip .
+          cd publish/${{ matrix.runtime }}
+          if [ "${{ matrix.runtime }}" = "win-x64" ]; then
+            zip -r ../../senf-win-x64-${{ github.ref_name }}.zip .
+          else
+            zip -r ../../senf-linux-x64-${{ github.ref_name }}.zip .
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: senf-${{ matrix.runtime }}
+          path: |
+            senf-win-x64-${{ github.ref_name }}.zip
+            senf-linux-x64-${{ github.ref_name }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
 
       - name: Create GitHub Release
-        uses: marvinpinto/action-automatic-releases@latest
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             senf-win-x64-${{ github.ref_name }}.zip
             senf-linux-x64-${{ github.ref_name }}.zip
+          prerelease: ${{ contains(github.ref_name, '-') }}
