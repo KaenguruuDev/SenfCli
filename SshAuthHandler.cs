@@ -1,4 +1,6 @@
 using Renci.SshNet;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace SenfCli;
@@ -57,8 +59,22 @@ public class SshAuthHandler
 
     private string SignMessage(string message, PrivateKeyFile keyFile, SignatureEncodingMode mode)
     {
-        var data = Encoding.UTF8.GetBytes(message);
+        // On non-Windows, try using ssh-keygen directly for more reliable signing
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
+            {
+                var sshKeygenSignature = SignWithSshKeygen(message);
+                if (sshKeygenSignature != null)
+                    return sshKeygenSignature;
+            }
+            catch
+            {
+                // Fall back to SSH.NET if ssh-keygen fails
+            }
+        }
 
+        var data = Encoding.UTF8.GetBytes(message);
         var signatureBlob = keyFile.Key.Sign(data);
 
         return mode switch
@@ -67,6 +83,58 @@ public class SshAuthHandler
             SignatureEncodingMode.SshBlob => Convert.ToBase64String(signatureBlob),
             _ => Convert.ToBase64String(TryExtractRawSignature(signatureBlob))
         };
+    }
+
+    private string? SignWithSshKeygen(string message)
+    {
+        try
+        {
+            var tempFile = Path.GetTempFileName();
+            var sigFile = tempFile + ".sig";
+
+            try
+            {
+                File.WriteAllText(tempFile, message);
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "ssh-keygen",
+                    Arguments = $"-Y sign -f \"{_sshKeyPath}\" -n file \"{tempFile}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = Process.Start(startInfo);
+                if (process == null)
+                    return null;
+
+                process.WaitForExit(5000);
+
+                if (process.ExitCode != 0 || !File.Exists(sigFile))
+                    return null;
+
+                var sigContent = File.ReadAllText(sigFile);
+                var sigLines = sigContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+                // Extract the base64 signature from ssh-keygen output
+                var signatureBase64 = string.Join("", sigLines.Where(l => !l.StartsWith("-----")));
+
+                return signatureBase64;
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                    File.Delete(tempFile);
+                if (File.Exists(sigFile))
+                    File.Delete(sigFile);
+            }
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static byte[] ToBackendCompatibleSignature(byte[] signatureBlob)
