@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Cryptography;
 
 namespace SenfCli;
 
@@ -8,6 +9,7 @@ public class SshProfile
     public string? Username { get; set; }
     public string? SshKeyPath { get; set; }
     public string? ApiUrl { get; set; }
+    public int? SshKeyId { get; set; }
 }
 
 public class Config
@@ -22,6 +24,7 @@ public class Config
 
     private static readonly string ConfigDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".senf");
     private static readonly string ConfigFile = Path.Combine(ConfigDir, "config.json");
+    private static readonly string FileHashesFile = Path.Combine(ConfigDir, "file-hashes.json");
 
     public static Config Load()
     {
@@ -117,6 +120,51 @@ public class Config
 
         return Profiles.TryGetValue(profileName, out var profile) ? profile : null;
     }
+
+    // File hash tracking methods
+    public static string ComputeFileHash(string filePath)
+    {
+        using var sha256 = SHA256.Create();
+        using var stream = File.OpenRead(filePath);
+        var hash = sha256.ComputeHash(stream);
+        return Convert.ToHexString(hash);
+    }
+
+    public static void SaveFileHash(string projectName, int sshKeyId, string hash)
+    {
+        if (!Directory.Exists(ConfigDir))
+            Directory.CreateDirectory(ConfigDir);
+
+        var hashes = LoadFileHashes();
+        var key = $"{projectName}:{sshKeyId}";
+        hashes[key] = new FileHashInfo { Hash = hash, Timestamp = DateTimeOffset.UtcNow };
+
+        var json = JsonSerializer.Serialize(hashes, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(FileHashesFile, json);
+    }
+
+    public static FileHashInfo? GetFileHash(string projectName, int sshKeyId)
+    {
+        var hashes = LoadFileHashes();
+        var key = $"{projectName}:{sshKeyId}";
+        return hashes.TryGetValue(key, out var info) ? info : null;
+    }
+
+    private static Dictionary<string, FileHashInfo> LoadFileHashes()
+    {
+        if (!File.Exists(FileHashesFile))
+            return new Dictionary<string, FileHashInfo>();
+
+        try
+        {
+            var json = File.ReadAllText(FileHashesFile);
+            return JsonSerializer.Deserialize<Dictionary<string, FileHashInfo>>(json) ?? new Dictionary<string, FileHashInfo>();
+        }
+        catch
+        {
+            return new Dictionary<string, FileHashInfo>();
+        }
+    }
 }
 
 public class ProjectConfig
@@ -125,4 +173,10 @@ public class ProjectConfig
     public string? EnvPath { get; set; }
     public string? BasePath { get; set; }
     public string? ProfileName { get; set; }
+}
+
+public class FileHashInfo
+{
+    public string Hash { get; set; } = null!;
+    public DateTimeOffset Timestamp { get; set; }
 }

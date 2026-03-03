@@ -1,6 +1,8 @@
 using Renci.SshNet;
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace SenfCli;
@@ -34,6 +36,61 @@ public class SshAuthHandler
         {
             throw new InvalidOperationException($"Failed to load SSH key from '{_sshKeyPath}': {ex.Message}", ex);
         }
+    }
+
+    public string GetPublicKeyString()
+    {
+        var keyFile = GetKeyFile();
+
+        // Serialize the public key to SSH wire format
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+
+        // Write key type (e.g., "ssh-rsa")
+        var keyTypeString = keyFile.Key.ToString() ?? "ssh-rsa";
+        var keyType = keyTypeString.Split(' ')[0];
+        WriteString(writer, keyType);
+
+        // Write public key parameters
+        foreach (var param in keyFile.Key.Public)
+        {
+            WriteBigInteger(writer, param);
+        }
+
+        var publicKeyBytes = ms.ToArray();
+
+        // Compute SHA256 fingerprint
+        using var sha256 = SHA256.Create();
+        var hash = sha256.ComputeHash(publicKeyBytes);
+
+        // Return in SSH format: SHA256:base64
+        return "SHA256:" + Convert.ToBase64String(hash).TrimEnd('=');
+    }
+
+    private void WriteString(BinaryWriter writer, string str)
+    {
+        var bytes = Encoding.UTF8.GetBytes(str);
+        writer.Write(IPAddress.HostToNetworkOrder(bytes.Length));
+        writer.Write(bytes);
+    }
+
+    private void WriteBigInteger(BinaryWriter writer, Renci.SshNet.Common.BigInteger bigInt)
+    {
+        // Convert BigInteger to byte array in SSH format
+        var bytes = bigInt.ToByteArray().Reverse().ToArray();
+
+        // Remove leading zeros, but keep one if the high bit is set
+        int i = 0;
+        while (i < bytes.Length - 1 && bytes[i] == 0 && bytes[i + 1] < 0x80)
+        {
+            i++;
+        }
+
+        var trimmedBytes = new byte[bytes.Length - i];
+        Array.Copy(bytes, i, trimmedBytes, 0, trimmedBytes.Length);
+
+        writer.Write(IPAddress.HostToNetworkOrder(trimmedBytes.Length));
+        writer.Write(trimmedBytes);
     }
 
     private PrivateKeyFile GetKeyFile()

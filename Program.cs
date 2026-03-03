@@ -16,7 +16,7 @@ public class Program
 public class RootCommand
 {
 	public void Run()
-		=> Console.WriteLine("Use 'senf --help' to see available commands");
+		=> ConsoleHelper.WriteInfo("Use 'senf --help' to see available commands");
 
 }
 
@@ -65,7 +65,7 @@ public class ProfileCommand
 {
 	public void Run()
 	{
-		Console.WriteLine("Use 'senf profile --help' to see available subcommands");
+		ConsoleHelper.WriteInfo("Use 'senf profile --help' to see available subcommands");
 	}
 }
 
@@ -87,9 +87,9 @@ public class ProfileSetCommand
 	[CliOption(Description = "Set as default profile")]
 	public bool Default { get; set; }
 
-	public void Run()
+	public async Task RunAsync()
 	{
-		CommandHandlers.CreateOrUpdateProfile(Name, Username, SshKey, ApiUrl, Default);
+		await CommandHandlers.CreateOrUpdateProfile(Name, Username, SshKey, ApiUrl, Default);
 	}
 }
 
@@ -132,7 +132,7 @@ public class ProjectCommand
 {
 	public void Run()
 	{
-		Console.WriteLine("Use 'senf project --help' to see available subcommands");
+		ConsoleHelper.WriteInfo("Use 'senf project --help' to see available subcommands");
 	}
 }
 
@@ -157,16 +157,19 @@ public class KeyCommand
 {
 	public void Run()
 	{
-		Console.WriteLine("Use 'senf key --help' to see available subcommands");
+		ConsoleHelper.WriteInfo("Use 'senf key --help' to see available subcommands");
 	}
 }
 
 [CliCommand(Description = "List all SSH keys", Name = "list", Parent = typeof(KeyCommand))]
 public class KeyListCommand
 {
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
+
 	public async Task RunAsync()
 	{
-		await CommandHandlers.ListSshKeys();
+		await CommandHandlers.ListSshKeys(Profile);
 	}
 }
 
@@ -178,6 +181,9 @@ public class KeyAddCommand
 
 	[CliArgument(Description = "Public key content (read from stdin if not provided)", Required = false)]
 	public string? PublicKey { get; set; }
+
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
 
 	public async Task RunAsync()
 	{
@@ -194,7 +200,7 @@ public class KeyAddCommand
 		}
 
 		publicKey = publicKey?.Trim() ?? string.Empty;
-		await CommandHandlers.AddSshKey(publicKey, Name);
+		await CommandHandlers.AddSshKey(publicKey, Name, Profile);
 	}
 }
 
@@ -204,8 +210,11 @@ public class KeyDeleteCommand
 	[CliArgument(Description = "Key ID to delete")]
 	public int KeyId { get; set; }
 
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
+
 	public async Task RunAsync()
 	{
-		await CommandHandlers.DeleteSshKey(KeyId);
+		await CommandHandlers.DeleteSshKey(KeyId, Profile);
 	}
 }
