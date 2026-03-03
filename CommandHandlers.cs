@@ -4,7 +4,7 @@ using System.Net;
 
 public class CommandHandlers
 {
-    public static async Task Init(string envPath, string projectName, string apiUrl = "http://localhost:5227")
+    public static async Task Init(string envPath, string projectName, string? profileName = null)
     {
         try
         {
@@ -35,7 +35,7 @@ public class CommandHandlers
                 ProjectName = projectName,
                 EnvPath = fullPath,
                 BasePath = basePath,
-                ApiUrl = apiUrl
+                ProfileName = profileName
             };
 
             config.AddOrUpdateProject(project);
@@ -43,6 +43,10 @@ public class CommandHandlers
 
             ConsoleHelper.WriteSuccess($"Initialized project '{projectName}' with env file: {fullPath}");
             ConsoleHelper.WriteDetail($"Base path: {basePath}");
+            if (!string.IsNullOrEmpty(profileName))
+            {
+                ConsoleHelper.WriteDetail($"Profile: {profileName}");
+            }
         }
         catch (Exception ex)
         {
@@ -65,10 +69,15 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            var profile = config.GetProfileForProject(project);
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Username) || string.IsNullOrWhiteSpace(profile.SshKeyPath))
             {
                 ConsoleHelper.WriteError("SSH credentials not configured.");
-                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                ConsoleHelper.WriteDetail("Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
+                if (!string.IsNullOrEmpty(project.ProfileName))
+                {
+                    ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
+                }
                 Environment.Exit(1);
             }
 
@@ -86,8 +95,8 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
-            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+            var authHandler = new SshAuthHandler(profile.SshKeyPath!, profile.Username!);
+            var client = new SenfApiClient(profile.ApiUrl ?? "http://localhost:5227", authHandler);
 
             try
             {
@@ -127,20 +136,25 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            var profile = config.GetProfileForProject(project);
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Username) || string.IsNullOrWhiteSpace(profile.SshKeyPath))
             {
                 ConsoleHelper.WriteError("SSH credentials not configured.");
-                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                ConsoleHelper.WriteDetail("Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
+                if (!string.IsNullOrEmpty(project.ProfileName))
+                {
+                    ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
+                }
                 Environment.Exit(1);
             }
 
-            if (!File.Exists(config.SshKeyPath))
+            if (!File.Exists(profile.SshKeyPath))
             {
-                ConsoleHelper.WriteError($"SSH key file not found: {config.SshKeyPath}");
+                ConsoleHelper.WriteError($"SSH key file not found: {profile.SshKeyPath}");
                 Environment.Exit(1);
             }
 
-            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
+            var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
 
             // Test the key can be loaded
             try
@@ -150,11 +164,11 @@ public class CommandHandlers
             catch (Exception ex)
             {
                 ConsoleHelper.WriteError($"Failed to load SSH key: {ex.Message}");
-                ConsoleHelper.WriteDetail($"Key path: {config.SshKeyPath}");
+                ConsoleHelper.WriteDetail($"Key path: {profile.SshKeyPath}");
                 Environment.Exit(1);
             }
 
-            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+            var client = new SenfApiClient(profile.ApiUrl ?? "http://localhost:5227", authHandler);
 
             var envFile = await client.GetEnvFileAsync(project.ProjectName!);
 
@@ -187,27 +201,199 @@ public class CommandHandlers
         }
     }
 
-    public static void SetCredentials(string username, string sshKeyPath)
+    public static void CreateOrUpdateProfile(string profileName, string? username = null, string? sshKeyPath = null, string? apiUrl = null, bool setAsDefault = false)
     {
         try
         {
-            if (!File.Exists(sshKeyPath))
+            var config = Config.Load();
+
+            // Get existing profile or create new one
+            if (!config.Profiles.TryGetValue(profileName, out var profile))
             {
-                ConsoleHelper.WriteError($"SSH key not found at: {sshKeyPath}");
-                Environment.Exit(1);
+                profile = new SshProfile();
+                config.Profiles[profileName] = profile;
             }
 
-            var config = Config.Load();
-            config.Username = username;
-            config.SshKeyPath = sshKeyPath;
+            // Update fields if provided
+            if (!string.IsNullOrEmpty(username))
+            {
+                profile.Username = username;
+            }
+
+            if (!string.IsNullOrEmpty(sshKeyPath))
+            {
+                if (!File.Exists(sshKeyPath))
+                {
+                    ConsoleHelper.WriteError($"SSH key not found at: {sshKeyPath}");
+                    Environment.Exit(1);
+                }
+                profile.SshKeyPath = sshKeyPath;
+            }
+
+            if (!string.IsNullOrEmpty(apiUrl))
+            {
+                profile.ApiUrl = apiUrl;
+            }
+
+            if (setAsDefault)
+            {
+                config.DefaultProfile = profileName;
+            }
 
             config.Save();
 
-            ConsoleHelper.WriteSuccess("Credentials configured successfully");
+            ConsoleHelper.WriteSuccess($"Profile '{profileName}' configured successfully");
+            if (!string.IsNullOrEmpty(username))
+            {
+                ConsoleHelper.WriteDetail($"Username: {username}");
+            }
+            if (!string.IsNullOrEmpty(sshKeyPath))
+            {
+                ConsoleHelper.WriteDetail($"SSH Key: {sshKeyPath}");
+            }
+            if (!string.IsNullOrEmpty(apiUrl))
+            {
+                ConsoleHelper.WriteDetail($"API URL: {apiUrl}");
+            }
+            if (setAsDefault)
+            {
+                ConsoleHelper.WriteDetail($"Set as default profile");
+            }
         }
         catch (Exception ex)
         {
-            ConsoleHelper.WriteError($"Error setting credentials: {ex.Message}");
+            ConsoleHelper.WriteError($"Error configuring profile: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    public static void ListProfiles()
+    {
+        try
+        {
+            var config = Config.Load();
+
+            if (config.Profiles.Count == 0)
+            {
+                ConsoleHelper.WriteInfo("No profiles configured");
+                ConsoleHelper.WriteDetail("Run 'senf profile set <name> --username <username> --ssh-key <path>' to create one.");
+                return;
+            }
+
+            ConsoleHelper.WriteSuccess($"Found {config.Profiles.Count} profile(s):");
+            foreach (var (name, profile) in config.Profiles)
+            {
+                var isDefault = name == config.DefaultProfile;
+                var marker = isDefault ? " (default)" : "";
+                Console.WriteLine($"\n  {name}{marker}");
+                Console.WriteLine($"    Username: {profile.Username ?? "(not set)"}");
+                Console.WriteLine($"    SSH Key: {profile.SshKeyPath ?? "(not set)"}");
+                Console.WriteLine($"    API URL: {profile.ApiUrl ?? "(not set)"}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error listing profiles: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    public static void DeleteProfile(string profileName)
+    {
+        try
+        {
+            var config = Config.Load();
+
+            if (!config.Profiles.ContainsKey(profileName))
+            {
+                ConsoleHelper.WriteError($"Profile '{profileName}' not found");
+                Environment.Exit(1);
+            }
+
+            config.Profiles.Remove(profileName);
+
+            // Clear default if we deleted the default profile
+            if (config.DefaultProfile == profileName)
+            {
+                config.DefaultProfile = null;
+            }
+
+            // Clear profile reference from projects using this profile
+            foreach (var project in config.Projects.Where(p => p.ProfileName == profileName))
+            {
+                project.ProfileName = null;
+            }
+
+            config.Save();
+
+            ConsoleHelper.WriteSuccess($"Profile '{profileName}' deleted successfully");
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error deleting profile: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    public static void SetDefaultProfile(string profileName)
+    {
+        try
+        {
+            var config = Config.Load();
+
+            if (!config.Profiles.ContainsKey(profileName))
+            {
+                ConsoleHelper.WriteError($"Profile '{profileName}' not found");
+                Environment.Exit(1);
+            }
+
+            config.DefaultProfile = profileName;
+            config.Save();
+
+            ConsoleHelper.WriteSuccess($"Default profile set to '{profileName}'");
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error setting default profile: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    public static void SetProjectProfile(string? profileName)
+    {
+        try
+        {
+            var config = Config.Load();
+            var project = config.GetCurrentProject();
+
+            if (project == null)
+            {
+                ConsoleHelper.WriteError("No project found for current directory.");
+                ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
+                Environment.Exit(1);
+            }
+
+            if (!string.IsNullOrEmpty(profileName) && !config.Profiles.ContainsKey(profileName))
+            {
+                ConsoleHelper.WriteError($"Profile '{profileName}' not found");
+                Environment.Exit(1);
+            }
+
+            project.ProfileName = profileName;
+            config.Save();
+
+            if (string.IsNullOrEmpty(profileName))
+            {
+                ConsoleHelper.WriteSuccess($"Cleared profile for project '{project.ProjectName}' (will use default)");
+            }
+            else
+            {
+                ConsoleHelper.WriteSuccess($"Set profile '{profileName}' for project '{project.ProjectName}'");
+            }
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error setting project profile: {ex.Message}");
             Environment.Exit(1);
         }
     }
@@ -226,15 +412,20 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            var profile = config.GetProfileForProject(project);
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Username) || string.IsNullOrWhiteSpace(profile.SshKeyPath))
             {
                 ConsoleHelper.WriteError("SSH credentials not configured.");
-                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                ConsoleHelper.WriteDetail("Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
+                if (!string.IsNullOrEmpty(project.ProfileName))
+                {
+                    ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
+                }
                 Environment.Exit(1);
             }
 
-            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
-            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+            var authHandler = new SshAuthHandler(profile.SshKeyPath!, profile.Username!);
+            var client = new SenfApiClient(profile.ApiUrl ?? "http://localhost:5227", authHandler);
 
             var response = await client.GetSshKeysAsync();
 
@@ -280,10 +471,15 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            var profile = config.GetProfileForProject(project);
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Username) || string.IsNullOrWhiteSpace(profile.SshKeyPath))
             {
                 ConsoleHelper.WriteError("SSH credentials not configured.");
-                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                ConsoleHelper.WriteDetail("Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
+                if (!string.IsNullOrEmpty(project.ProfileName))
+                {
+                    ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
+                }
                 Environment.Exit(1);
             }
 
@@ -293,8 +489,8 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
-            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+            var authHandler = new SshAuthHandler(profile.SshKeyPath!, profile.Username!);
+            var client = new SenfApiClient(profile.ApiUrl ?? "http://localhost:5227", authHandler);
 
             var response = await client.CreateSshKeyAsync(publicKey, keyName);
 
@@ -331,15 +527,20 @@ public class CommandHandlers
                 Environment.Exit(1);
             }
 
-            if (string.IsNullOrWhiteSpace(config.Username) || string.IsNullOrWhiteSpace(config.SshKeyPath))
+            var profile = config.GetProfileForProject(project);
+            if (profile == null || string.IsNullOrWhiteSpace(profile.Username) || string.IsNullOrWhiteSpace(profile.SshKeyPath))
             {
                 ConsoleHelper.WriteError("SSH credentials not configured.");
-                ConsoleHelper.WriteDetail("Run 'senf config <username> <ssh-key-path>' first.");
+                ConsoleHelper.WriteDetail("Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
+                if (!string.IsNullOrEmpty(project.ProfileName))
+                {
+                    ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
+                }
                 Environment.Exit(1);
             }
 
-            var authHandler = new SshAuthHandler(config.SshKeyPath, config.Username);
-            var client = new SenfApiClient(project.ApiUrl ?? "http://localhost:5227", authHandler);
+            var authHandler = new SshAuthHandler(profile.SshKeyPath!, profile.Username!);
+            var client = new SenfApiClient(profile.ApiUrl ?? "http://localhost:5227", authHandler);
 
             await client.DeleteSshKeyAsync(keyId);
             ConsoleHelper.WriteSuccess($"SSH key {keyId} deleted successfully");

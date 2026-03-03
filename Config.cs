@@ -3,10 +3,19 @@ using System.Text.Json.Serialization;
 
 namespace SenfCli;
 
-public class Config
+public class SshProfile
 {
     public string? Username { get; set; }
     public string? SshKeyPath { get; set; }
+    public string? ApiUrl { get; set; }
+}
+
+public class Config
+{
+    public string? DefaultProfile { get; set; }
+
+    [JsonPropertyName("profiles")]
+    public Dictionary<string, SshProfile> Profiles { get; set; } = new();
 
     [JsonPropertyName("projects")]
     public List<ProjectConfig> Projects { get; set; } = new();
@@ -23,53 +32,7 @@ public class Config
             return new Config();
 
         var json = File.ReadAllText(ConfigFile);
-        var config = JsonSerializer.Deserialize<Config>(json) ?? new Config();
-
-        // Migrate old config format
-        var needsSave = false;
-        if (File.Exists(ConfigFile))
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                if (root.TryGetProperty("CurrentProjectName", out var projName) &&
-                    root.TryGetProperty("CurrentEnvPath", out var envPath))
-                {
-                    var oldProject = new ProjectConfig
-                    {
-                        ProjectName = projName.GetString(),
-                        EnvPath = envPath.GetString(),
-                        ApiUrl = root.TryGetProperty("ApiUrl", out var apiUrl)
-                            ? apiUrl.GetString()
-                            : "http://localhost:5227",
-                        BasePath = envPath.GetString() != null
-                            ? Path.GetDirectoryName(envPath.GetString()!)
-                            : null
-                    };
-
-                    if (!string.IsNullOrEmpty(oldProject.BasePath) &&
-                        config.GetProjectByBasePath(oldProject.BasePath) == null)
-                    {
-                        config.Projects.Add(oldProject);
-                        needsSave = true;
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore migration errors
-            }
-        }
-
-        // Save if we migrated to clean up old format
-        if (needsSave)
-        {
-            config.Save();
-        }
-
-        return config;
+        return JsonSerializer.Deserialize<Config>(json) ?? new Config();
     }
 
     public void Save()
@@ -126,12 +89,40 @@ public class Config
         }
         Projects.Add(project);
     }
+
+    public SshProfile? GetProfileForProject(ProjectConfig? project)
+    {
+        if (project == null)
+            return null;
+
+        // Try project-specific profile first
+        if (!string.IsNullOrEmpty(project.ProfileName) && Profiles.TryGetValue(project.ProfileName, out var projectProfile))
+            return projectProfile;
+
+        // Fall back to default profile
+        if (!string.IsNullOrEmpty(DefaultProfile) && Profiles.TryGetValue(DefaultProfile, out var defaultProfile))
+            return defaultProfile;
+
+        // If no default set, try "default" profile name
+        if (Profiles.TryGetValue("default", out var namedDefault))
+            return namedDefault;
+
+        return null;
+    }
+
+    public SshProfile? GetProfile(string? profileName)
+    {
+        if (string.IsNullOrEmpty(profileName))
+            return null;
+
+        return Profiles.TryGetValue(profileName, out var profile) ? profile : null;
+    }
 }
 
 public class ProjectConfig
 {
-    public string? ApiUrl { get; set; }
     public string? ProjectName { get; set; }
     public string? EnvPath { get; set; }
     public string? BasePath { get; set; }
+    public string? ProfileName { get; set; }
 }
