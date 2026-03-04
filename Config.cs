@@ -7,31 +7,31 @@ namespace SenfCli;
 public class SshProfile
 {
 	[JsonPropertyName("username")]
-	public string? Username { get; set; }
+	public string Username { get; set; } = null!;
 
 	[JsonPropertyName("ssh_key_path")]
-	public string? SshKeyPath { get; set; }
+	public string SshKeyPath { get; set; } = null!;
 
 	[JsonPropertyName("api_url")]
-	public string? ApiUrl { get; set; }
+	public string ApiUrl { get; set; } = null!;
 
 	[JsonPropertyName("ssh_key_id")]
-	public int? SshKeyId { get; set; }
+	public int SshKeyId { get; set; } = -1;
 }
 
 public class ProjectConfig
 {
 	[JsonPropertyName("project_name")]
-	public string? ProjectName { get; set; }
+	public string ProjectName { get; set; } = null!;
 
 	[JsonPropertyName("env_path")]
-	public string? EnvPath { get; set; }
+	public string EnvPath { get; set; } = null!;
 
 	[JsonPropertyName("base_path")]
-	public string? BasePath { get; set; }
+	public string BasePath { get; set; } = null!;
 
 	[JsonPropertyName("profile_name")]
-	public string? ProfileName { get; set; }
+	public string ProfileName { get; set; } = null!;
 }
 
 public class FileHashInfo
