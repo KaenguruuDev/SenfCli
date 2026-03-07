@@ -1,9 +1,10 @@
 ﻿using System.Text;
 using DotMake.CommandLine;
+using SenfCli.Handlers;
 
 namespace SenfCli;
 
-public class Program
+public static class Program
 {
 	public static async Task Main(string[] args)
 	{
@@ -17,11 +18,10 @@ public class RootCommand
 {
 	public void Run()
 		=> ConsoleHelper.WriteInfo("Use 'senf --help' to see available commands");
-
 }
 
-// ======= Init Command =======
-[CliCommand(Description = "Initialize a new project", Name = "init", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+[CliCommand(Description = "Initialize a new project", Name = "init", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class InitCommand
 {
 	[CliArgument(Description = "Path to the .env file")]
@@ -34,49 +34,39 @@ public class InitCommand
 	public string? UserProfile { get; set; }
 
 	public async Task RunAsync()
-	{
-		await CommandHandlers.Init(EnvPath, ProjectName, UserProfile);
-	}
+		=> await InitCommandHandler.Init(EnvPath, ProjectName, UserProfile);
 }
 
-// ======= Push Command =======
-[CliCommand(Description = "Push current env file to the server", Name = "push", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+[CliCommand(Description = "Push current env file to the server", Name = "push", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class PushCommand
 {
 	public async Task RunAsync()
-	{
-		await CommandHandlers.Push();
-	}
+		=> await SyncCommandHandler.Push();
 }
 
-// ======= Pull Command =======
-[CliCommand(Description = "Pull env file from the server", Name = "pull", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+[CliCommand(Description = "Pull env file from the server", Name = "pull", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class PullCommand
 {
 	public async Task RunAsync()
-	{
-		await CommandHandlers.Pull();
-	}
+		=> await SyncCommandHandler.Pull();
 }
 
-// ======= Reconcile Command =======
-[CliCommand(Description = "Interactively reconcile local and remote env files", Name = "reconcile", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+[CliCommand(Description = "Interactively reconcile local and remote env files", Name = "reconcile",
+	Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class ReconcileCommand
 {
 	public async Task RunAsync()
-	{
-		await CommandHandlers.Reconcile();
-	}
+		=> await SyncCommandHandler.Reconcile();
 }
 
-// ======= Profile Commands =======
-[CliCommand(Description = "Manage authentication profiles", Name = "profile", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+[CliCommand(Description = "Manage authentication profiles", Name = "profile", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class ProfileCommand
 {
 	public void Run()
-	{
-		ConsoleHelper.WriteInfo("Use 'senf profile --help' to see available subcommands");
-	}
+		=> ConsoleHelper.WriteInfo("Use 'senf profile --help' to see available subcommands");
 }
 
 [CliCommand(Description = "Create or update a profile", Name = "set", Parent = typeof(ProfileCommand))]
@@ -98,18 +88,14 @@ public class ProfileSetCommand
 	public bool Default { get; set; }
 
 	public async Task RunAsync()
-	{
-		await CommandHandlers.CreateOrUpdateProfile(Name, Username, SshKey, ApiUrl, Default);
-	}
+		=> await ProfileCommandHandler.CreateOrUpdateProfile(Name, Username, SshKey, ApiUrl, Default);
 }
 
 [CliCommand(Description = "List all profiles", Name = "list", Parent = typeof(ProfileCommand))]
 public class ProfileListCommand
 {
 	public void Run()
-	{
-		CommandHandlers.ListProfiles();
-	}
+		=> ProfileCommandHandler.ListProfiles();
 }
 
 [CliCommand(Description = "Delete a profile", Name = "delete", Parent = typeof(ProfileCommand))]
@@ -119,9 +105,7 @@ public class ProfileDeleteCommand
 	public string Name { get; set; } = null!;
 
 	public void Run()
-	{
-		CommandHandlers.DeleteProfile(Name);
-	}
+		=> ProfileCommandHandler.DeleteProfile(Name);
 }
 
 [CliCommand(Description = "Set default profile", Name = "default", Parent = typeof(ProfileCommand))]
@@ -131,19 +115,15 @@ public class ProfileDefaultCommand
 	public string Name { get; set; } = null!;
 
 	public void Run()
-	{
-		CommandHandlers.SetDefaultProfile(Name);
-	}
+		=> ProfileCommandHandler.SetDefaultProfile(Name);
 }
 
-// ======= Project Commands =======
-[CliCommand(Description = "Manage project settings", Name = "project", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+[CliCommand(Description = "Manage project settings", Name = "project", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class ProjectCommand
 {
 	public void Run()
-	{
-		ConsoleHelper.WriteInfo("Use 'senf project --help' to see available subcommands");
-	}
+		=> ConsoleHelper.WriteInfo("Use 'senf project --help' to see available subcommands");
 }
 
 [CliCommand(Description = "Set profile for current project", Name = "set-profile", Parent = typeof(ProjectCommand))]
@@ -156,19 +136,15 @@ public class ProjectSetProfileCommand
 	public bool Clear { get; set; }
 
 	public void Run()
-	{
-		CommandHandlers.SetProjectProfile(Clear ? null : Name);
-	}
+		=> ProjectCommandHandler.SetProjectProfile(Clear ? null : Name);
 }
 
-// ======= Key Commands =======
-[CliCommand(Description = "Manage SSH keys on the server", Name = "key", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+[CliCommand(Description = "Manage SSH keys on the server", Name = "key", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class KeyCommand
 {
 	public void Run()
-	{
-		ConsoleHelper.WriteInfo("Use 'senf key --help' to see available subcommands");
-	}
+		=> ConsoleHelper.WriteInfo("Use 'senf key --help' to see available subcommands");
 }
 
 [CliCommand(Description = "List all SSH keys", Name = "list", Parent = typeof(KeyCommand))]
@@ -178,9 +154,7 @@ public class KeyListCommand
 	public string? Profile { get; set; }
 
 	public async Task RunAsync()
-	{
-		await CommandHandlers.ListSshKeys(Profile);
-	}
+		=> await KeyCommandHandler.ListSshKeys(Profile);
 }
 
 [CliCommand(Description = "Add an SSH public key", Name = "add", Parent = typeof(KeyCommand))]
@@ -200,17 +174,12 @@ public class KeyAddCommand
 		string publicKey;
 
 		if (!string.IsNullOrEmpty(PublicKey))
-		{
 			publicKey = PublicKey;
-		}
 		else
-		{
-			// Read from stdin
 			publicKey = await Console.In.ReadToEndAsync();
-		}
 
 		publicKey = publicKey?.Trim() ?? string.Empty;
-		await CommandHandlers.AddSshKey(publicKey, Name, Profile);
+		await KeyCommandHandler.AddSshKey(publicKey, Name, Profile);
 	}
 }
 
@@ -224,7 +193,5 @@ public class KeyDeleteCommand
 	public string? Profile { get; set; }
 
 	public async Task RunAsync()
-	{
-		await CommandHandlers.DeleteSshKey(KeyId, Profile);
-	}
+		=> await KeyCommandHandler.DeleteSshKey(KeyId, Profile);
 }
