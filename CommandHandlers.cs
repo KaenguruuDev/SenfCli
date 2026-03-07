@@ -51,6 +51,25 @@ public class CommandHandlers
 		}
 	}
 
+	private static SshProfile LoadAndValidateProfileForProject(Config config, ProjectConfig project)
+	{
+		var profile = config.GetProfileForProject(project);
+		if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
+		    string.IsNullOrWhiteSpace(profile.SshKeyPath))
+		{
+			ConsoleHelper.WriteError("SSH credentials not configured.");
+			ConsoleHelper.WriteDetail(
+				"Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
+
+			if (!string.IsNullOrEmpty(project.ProfileName))
+				ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
+
+			Environment.Exit(1);
+		}
+
+		return profile;
+	}
+
 	public static async Task Push()
 	{
 		try
@@ -65,20 +84,7 @@ public class CommandHandlers
 				Environment.Exit(1);
 			}
 
-			var profile = config.GetProfileForProject(project);
-			if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
-			    string.IsNullOrWhiteSpace(profile.SshKeyPath))
-			{
-				ConsoleHelper.WriteError("SSH credentials not configured.");
-				ConsoleHelper.WriteDetail(
-					"Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
-
-				if (!string.IsNullOrEmpty(project.ProfileName))
-					ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
-
-				Environment.Exit(1);
-			}
-
+			var profile = LoadAndValidateProfileForProject(config, project);
 			if (string.IsNullOrWhiteSpace(project.EnvPath) || !File.Exists(project.EnvPath))
 			{
 				ConsoleHelper.WriteError($"Env file not found: {project.EnvPath}");
@@ -97,6 +103,24 @@ public class CommandHandlers
 
 			var authHandler = new SshAuthHandler(profile.SshKeyPath!, profile.Username!);
 			var client = new SenfApiClient(profile.ApiUrl, authHandler);
+
+			var latestRemote = await client.GetEnvFileAsync(project.ProjectName);
+			var latestRemoteHash = latestRemote != null ? Config.ComputeStringHash(latestRemote.Content!) : null;
+
+			var storedHashInfo = Config.GetFileHash(project.ProjectName, profile.SshKeyId)?.Hash;
+
+			if (latestRemoteHash != null && storedHashInfo != null && latestRemoteHash != storedHashInfo)
+			{
+				ConsoleHelper.WriteWarning("The remote env file has changed since the last pull.");
+				Console.Write("Are you sure you want to overwrite the remote file? (Y/n): ");
+				var response = Console.ReadLine()?.Trim().ToLower();
+
+				if (response != "y" && response != "yes" && response != "")
+				{
+					ConsoleHelper.WriteInfo("Push cancelled.");
+					return;
+				}
+			}
 
 			try
 			{
@@ -143,20 +167,7 @@ public class CommandHandlers
 				Environment.Exit(1);
 			}
 
-			var profile = config.GetProfileForProject(project);
-			if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
-			    string.IsNullOrWhiteSpace(profile.SshKeyPath))
-			{
-				ConsoleHelper.WriteError("SSH credentials not configured.");
-				ConsoleHelper.WriteDetail(
-					"Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
-
-				if (!string.IsNullOrEmpty(project.ProfileName))
-					ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
-
-				Environment.Exit(1);
-			}
-
+			var profile = LoadAndValidateProfileForProject(config, project);
 			if (!File.Exists(profile.SshKeyPath))
 			{
 				ConsoleHelper.WriteError($"SSH key file not found: {profile.SshKeyPath}");
@@ -370,8 +381,9 @@ public class CommandHandlers
 			}
 
 			var affectedProfiles = config.Projects.Where(p => p.ProfileName == profileName).ToArray();
-			
-			ConsoleHelper.WriteWarning($"Deleting '{profileName}' will require re-configuration of {affectedProfiles.Length} profile(s)");
+
+			ConsoleHelper.WriteWarning(
+				$"Deleting '{profileName}' will require re-configuration of {affectedProfiles.Length} profile(s)");
 			Console.Write("Are you sure you want to overwrite them? (Y/n): ");
 			var response = Console.ReadLine()?.Trim().ToLower();
 			if (response != "y" && response != "yes" && response != "")
@@ -379,7 +391,7 @@ public class CommandHandlers
 				ConsoleHelper.WriteInfo("Cancel.");
 				return;
 			}
-			
+
 			config.Profiles.Remove(profileName);
 			if (config.DefaultProfile == profileName)
 				config.DefaultProfile = null;

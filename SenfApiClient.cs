@@ -21,7 +21,7 @@ public class SenfApiClient
         var response = await SendWithAuthRetryAsync(
             () => new HttpRequestMessage(HttpMethod.Get, $"/env?name={Uri.EscapeDataString(name)}"));
 
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (response.StatusCode == HttpStatusCode.NotFound)
             return null;
 
         if (!response.IsSuccessStatusCode)

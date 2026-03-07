@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace SenfCli;
 
@@ -160,7 +161,13 @@ public class Config
 		return Convert.ToHexString(hash);
 	}
 
-	public static void SaveFileHash(string projectName, int sshKeyId, string hash)
+	public static string ComputeStringHash(string content)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+        return Convert.ToHexString(hash);
+    }
+
+    public static void SaveFileHash(string projectName, int sshKeyId, string hash)
 	{
 		if (!Directory.Exists(ConfigDir))
 			Directory.CreateDirectory(ConfigDir);
