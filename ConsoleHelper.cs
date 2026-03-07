@@ -36,4 +36,11 @@ public static class ConsoleHelper
         Console.WriteLine($"  {message}");
         Console.ResetColor();
     }
+
+    public static void Ask(string message)
+    {
+	    Console.ForegroundColor = ConsoleColor.DarkYellow;
+	    Console.WriteLine($"❓ {message}");
+	    Console.ResetColor();
+    }
 }

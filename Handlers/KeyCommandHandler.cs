@@ -55,11 +55,11 @@ public static class KeyCommandHandler
 			ConsoleHelper.WriteSuccess($"Found {response.Keys.Count} SSH key(s):");
 			foreach (var key in response.Keys)
 			{
-				Console.WriteLine($"  ID: {key.Id}");
-				Console.WriteLine($"  Name: {key.Name}");
-				Console.WriteLine($"  Fingerprint: {key.Fingerprint}");
-				Console.WriteLine($"  Created: {key.CreatedAt:yyyy-MM-dd HH:mm:ss}");
-				Console.WriteLine();
+				ConsoleHelper.WriteInfo($"ID: {key.Id}");
+				ConsoleHelper.WriteDetail($"Name: {key.Name}");
+				ConsoleHelper.WriteDetail($"Fingerprint: {key.Fingerprint}");
+				ConsoleHelper.WriteDetail($"Created: {key.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+				ConsoleHelper.WriteInfo("");
 			}
 		}
 		catch (SenfApiException ex)

@@ -114,12 +114,12 @@ public static class ProfileCommandHandler
 			{
 				var isDefault = name == config.DefaultProfile;
 				var marker = isDefault ? " (default)" : "";
-				Console.WriteLine($"\n  {name}{marker}");
-				Console.WriteLine($"    Username: {profile.Username}");
-				Console.WriteLine($"    SSH Key: {profile.SshKeyPath}");
-				Console.WriteLine($"    API URL: {profile.ApiUrl}");
+				ConsoleHelper.WriteInfo($"{name}{marker}");
+				ConsoleHelper.WriteDetail($"Username: {profile.Username}");
+				ConsoleHelper.WriteDetail($"SSH Key: {profile.SshKeyPath}");
+				ConsoleHelper.WriteDetail($"API URL: {profile.ApiUrl}");
 				if (profile.SshKeyId > -1)
-					Console.WriteLine($"    SSH Key ID: {profile.SshKeyId}");
+					ConsoleHelper.WriteDetail($"SSH Key ID: {profile.SshKeyId}");
 			}
 		}
 		catch (Exception ex)
@@ -145,7 +145,7 @@ public static class ProfileCommandHandler
 
 			ConsoleHelper.WriteWarning(
 				$"Deleting '{profileName}' will require re-configuration of {affectedProfiles.Length} profile(s)");
-			Console.Write("Are you sure you want to overwrite them? (Y/n): ");
+			ConsoleHelper.Ask("Are you sure you want to overwrite them? (Y/n): ");
 			var response = Console.ReadLine()?.Trim().ToLower();
 			if (response != "y" && response != "yes" && response != "")
 			{

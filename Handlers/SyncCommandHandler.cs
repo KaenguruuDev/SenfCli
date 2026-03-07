@@ -88,32 +88,34 @@ public static class SyncCommandHandler
 			if (latestRemoteHash != null && storedHashInfo != null && latestRemoteHash != storedHashInfo)
 			{
 				ConsoleHelper.WriteWarning("The remote env file has changed since the last pull.");
-				Console.Write("Choose (o)verwrite / (r)econcile / (c)ancel: ");
+				ConsoleHelper.Ask("Choose (o)verwrite / (r)econcile / (c)cancel: ");
 				var response = Console.ReadLine()?.Trim().ToLower();
 
-				if (response == "r" || response == "reconcile")
+				switch (response)
 				{
-					await Reconcile();
-					Console.Write("Do you want to push the merged file now? (y/n): ");
-					var pushResp = Console.ReadLine()?.Trim().ToLower();
-					if (pushResp != "y" && pushResp != "yes")
+					case "r" or "reconcile":
 					{
-						ConsoleHelper.WriteInfo("Push cancelled after reconcile.");
-						return;
-					}
+						await Reconcile();
+						ConsoleHelper.Ask("Do you want to push the merged file now? (y/n): ");
+						var pushResp = Console.ReadLine()?.Trim().ToLower();
+						if (pushResp != "y" && pushResp != "yes")
+						{
+							ConsoleHelper.WriteInfo("Push cancelled after reconcile.");
+							return;
+						}
 
-					// Re-read content and recompute hash after reconcile
-					content = await File.ReadAllTextAsync(project.EnvPath);
-					fileHash = Config.ComputeFileHash(project.EnvPath);
-				}
-				else if (response == "o" || response == "overwrite")
-				{
-					// proceed with overwrite
-				}
-				else
-				{
-					ConsoleHelper.WriteInfo("Push cancelled.");
-					return;
+						// Re-read content and recompute hash after reconcile
+						content = await File.ReadAllTextAsync(project.EnvPath);
+						fileHash = Config.ComputeFileHash(project.EnvPath);
+						break;
+					}
+					case "o":
+					case "overwrite":
+						// proceed with overwrite
+						break;
+					default:
+						ConsoleHelper.WriteInfo("Push cancelled.");
+						return;
 				}
 			}
 
@@ -131,9 +133,7 @@ public static class SyncCommandHandler
 				ConsoleHelper.WriteSuccess($"Created project '{project.ProjectName}' and pushed env file");
 
 				if (profile.SshKeyId > -1)
-				{
 					Config.SaveFileHash(project.ProjectName, profile.SshKeyId, fileHash);
-				}
 			}
 		}
 		catch (SenfApiException ex)
@@ -178,24 +178,21 @@ public static class SyncCommandHandler
 				{
 					ConsoleHelper.WriteWarning("The contents of the env file were changed since the last push.");
 					ConsoleHelper.WriteDetail($"Local file: {project.EnvPath}");
-					Console.Write("Choose (o)verwrite / (r)econcile / (c)ancel: ");
+					ConsoleHelper.Ask("Choose (o)verwrite / (r)econcile / (c)ancel: ");
 					var response = Console.ReadLine()?.Trim().ToLower();
 
-					if (response == "r" || response == "reconcile")
+					switch (response)
 					{
-						await Reconcile();
-						ConsoleHelper.WriteInfo("Reconcile finished. Pull cancelled.");
-						return;
-					}
-
-					if (response == "o" || response == "overwrite")
-					{
-						// proceed with overwrite
-					}
-					else
-					{
-						ConsoleHelper.WriteInfo("Pull cancelled.");
-						return;
+						case "r" or "reconcile":
+							await Reconcile();
+							ConsoleHelper.WriteInfo("Reconcile finished. Pull cancelled.");
+							return;
+						case "o" or "overwrite":
+							// proceed with overwrite
+							break;
+						default:
+							ConsoleHelper.WriteInfo("Pull cancelled.");
+							return;
 					}
 				}
 			}
@@ -331,10 +328,10 @@ public static class SyncCommandHandler
 
 				while (true)
 				{
-					Console.WriteLine($"Conflict for key: {key}");
-					Console.WriteLine($"  Local : {lval}");
-					Console.WriteLine($"  Remote: {rval}");
-					Console.Write("Choose (l)ocal / (r)emote / (e)dit / (s)kip (keep local) / (a)bort: ");
+					ConsoleHelper.WriteWarning($"Conflict for key: {key}");
+					ConsoleHelper.WriteDetail($"Local : {lval}");
+					ConsoleHelper.WriteDetail($"Remote: {rval}");
+					ConsoleHelper.Ask("Choose (l)ocal / (r)emote / (e)dit / (s)kip (keep local) / (a)bort: ");
 					var choice = Console.ReadLine()?.Trim().ToLower();
 					if (choice is "l" or "local")
 					{
@@ -350,7 +347,7 @@ public static class SyncCommandHandler
 
 					if (choice is "e" or "edit")
 					{
-						Console.Write("Enter replacement value: ");
+						ConsoleHelper.Ask("Enter replacement value: ");
 						var edited = Console.ReadLine() ?? string.Empty;
 						merged[key] = edited;
 						break;
@@ -368,7 +365,7 @@ public static class SyncCommandHandler
 						return;
 					}
 
-					Console.WriteLine("Invalid choice — please enter l, r, e, s, or a.");
+					ConsoleHelper.WriteError("Invalid choice — please enter l, r, e, s, or a.");
 				}
 			}
 
