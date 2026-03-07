@@ -9,7 +9,14 @@ public static class Program
 	public static async Task Main(string[] args)
 	{
 		Console.OutputEncoding = Encoding.UTF8;
-		await Cli.RunAsync<RootCommand>(args);
+		try
+		{
+			await Cli.RunAsync<RootCommand>(args);
+		}
+		catch (Exception e)
+		{
+			ConsoleHelper.WriteError($"Exception in main: {e.Message}");
+		}
 	}
 }
 
