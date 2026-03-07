@@ -59,6 +59,16 @@ public class PullCommand
 	}
 }
 
+// ======= Reconcile Command =======
+[CliCommand(Description = "Interactively reconcile local and remote env files", Name = "reconcile", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+public class ReconcileCommand
+{
+	public async Task RunAsync()
+	{
+		await CommandHandlers.Reconcile();
+	}
+}
+
 // ======= Profile Commands =======
 [CliCommand(Description = "Manage authentication profiles", Name = "profile", Parent = typeof(RootCommand), ShortFormAutoGenerate = CliNameAutoGenerate.None)]
 public class ProfileCommand
