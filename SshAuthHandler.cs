@@ -142,8 +142,18 @@ public class SshAuthHandler
         };
     }
 
+    private static bool ConfirmSshKeygenSigning()
+    {
+        ConsoleHelper.WriteWarning("ssh-keygen signing uses temporary files for the message/signature.");
+        ConsoleHelper.Ask("Proceed with ssh-keygen signing? (y/N): ");
+        var response = Console.ReadLine()?.Trim().ToLowerInvariant();
+        return response is "y" or "yes";
+    }
     private string? SignWithSshKeygen(string message)
     {
+        if (!ConfirmSshKeygenSigning())
+            return null;
+
         try
         {
             var tempFile = Path.GetTempFileName();

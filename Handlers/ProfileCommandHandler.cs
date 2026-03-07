@@ -27,7 +27,16 @@ public static class ProfileCommandHandler
 		}
 
 		if (!string.IsNullOrEmpty(apiUrl))
+		{
+			if (!Uri.TryCreate(apiUrl, UriKind.Absolute, out var parsedUri) ||
+			    parsedUri.Scheme != Uri.UriSchemeHttps)
+			{
+				ConsoleHelper.WriteError("API URL must be a valid HTTPS URL (e.g., https://api.example.com).");
+				Environment.Exit(1);
+			}
+
 			profile.ApiUrl = apiUrl;
+		}
 
 		if (setAsDefault)
 			config.DefaultProfile = profileName;

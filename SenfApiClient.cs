@@ -7,7 +7,15 @@ namespace SenfCli;
 
 public class SenfApiClient(string apiUrl, SshAuthHandler authHandler)
 {
-    private readonly HttpClient _httpClient = new() { BaseAddress = new Uri(apiUrl) };
+    private readonly HttpClient _httpClient = CreateHttpClient(apiUrl);
+
+    private static HttpClient CreateHttpClient(string apiUrl)
+    {
+        if (!Uri.TryCreate(apiUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+            throw new InvalidOperationException("API URL must use HTTPS.");
+
+        return new HttpClient { BaseAddress = uri };
+    }
 
     public async Task<EnvFileResponse?> GetEnvFileAsync(string name)
     {
