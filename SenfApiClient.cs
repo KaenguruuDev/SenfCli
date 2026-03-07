@@ -5,16 +5,9 @@ using System.Text.Json.Serialization;
 
 namespace SenfCli;
 
-public class SenfApiClient
+public class SenfApiClient(string apiUrl, SshAuthHandler authHandler)
 {
-    private readonly HttpClient _httpClient;
-    private readonly SshAuthHandler _authHandler;
-
-    public SenfApiClient(string apiUrl, SshAuthHandler authHandler)
-    {
-        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
-        _authHandler = authHandler;
-    }
+    private readonly HttpClient _httpClient = new() { BaseAddress = new Uri(apiUrl) };
 
     public async Task<EnvFileResponse?> GetEnvFileAsync(string name)
     {
@@ -118,7 +111,7 @@ public class SenfApiClient
     private async Task<HttpResponseMessage> SendWithAuthRetryAsync(Func<HttpRequestMessage> requestFactory)
     {
         var firstAttempt = requestFactory();
-        _authHandler.AddAuthHeaders(firstAttempt, SignatureEncodingMode.BackendCompatible);
+        authHandler.AddAuthHeaders(firstAttempt, SignatureEncodingMode.BackendCompatible);
         var response = await _httpClient.SendAsync(firstAttempt);
 
         if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
@@ -127,7 +120,7 @@ public class SenfApiClient
         response.Dispose();
 
         var secondAttempt = requestFactory();
-        _authHandler.AddAuthHeaders(secondAttempt, SignatureEncodingMode.SshBlob);
+        authHandler.AddAuthHeaders(secondAttempt, SignatureEncodingMode.SshBlob);
         var secondResponse = await _httpClient.SendAsync(secondAttempt);
 
         if (secondResponse.StatusCode != System.Net.HttpStatusCode.Unauthorized)
@@ -136,7 +129,7 @@ public class SenfApiClient
         secondResponse.Dispose();
 
         var thirdAttempt = requestFactory();
-        _authHandler.AddAuthHeaders(thirdAttempt, SignatureEncodingMode.Raw);
+        authHandler.AddAuthHeaders(thirdAttempt, SignatureEncodingMode.Raw);
         return await _httpClient.SendAsync(thirdAttempt);
     }
 }

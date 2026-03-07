@@ -15,7 +15,7 @@ public static class Program
 		}
 		catch (Exception e)
 		{
-			ConsoleHelper.WriteError($"Exception in main: {e.Message}");
+			ConsoleHelper.WriteError($"An error occurred while executing your command: {e.Message}");
 		}
 	}
 }
