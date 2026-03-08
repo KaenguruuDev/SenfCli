@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
-INSTALL_PATH="$HOME/.senf/bin"
+INSTALL_PATH="/usr/local/bin"
 ADD_TO_PATH=false
 SHOW_HELP=false
 
@@ -56,7 +55,6 @@ echo "Building SenfCli..."
 
 dotnet publish "$PROJECT_FILE" \
     -c Release \
-    -r linux-x64 \
     --self-contained true \
     -p:PublishSingleFile=true \
     -o "$PUBLISH_PATH"
@@ -69,10 +67,22 @@ echo "Copying files to $INSTALL_PATH"
 cp -r "$PUBLISH_PATH"/. "$INSTALL_PATH/"
 
 SHIM_PATH="$INSTALL_PATH/senf"
-cat > "$SHIM_PATH" << 'EOF'
+
+if [ ! -w "$INSTALL_PATH" ]; then
+    echo "ERROR: Cannot write to $INSTALL_PATH. Check permissions."
+    exit 1
+fi
+
+/bin/cat > "$SHIM_PATH" << "EOF"
 #!/usr/bin/env bash
-exec "$(dirname "$(realpath "$0")")/SenfCli" "$@"
+exec "$INSTALL_PATH/SenfCli" "$@"
 EOF
+
+if [ ! -f "$SHIM_PATH" ]; then
+    echo "ERROR: Failed to create shim file at $SHIM_PATH."
+    exit 1
+fi
+
 chmod +x "$SHIM_PATH"
 chmod +x "$INSTALL_PATH/SenfCli"
 
