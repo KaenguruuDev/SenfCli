@@ -104,7 +104,9 @@ public class SshAuthHandler
         var keyFile = GetKeyFile();
         var nonce = Guid.NewGuid().ToString("N");
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var message = $"{timestamp}:{nonce}";
+        var method = request.Method.Method.ToUpperInvariant();
+        var pathAndQuery = BuildPathAndQuery(request);
+        var message = $"{timestamp}:{nonce}:{method}:{pathAndQuery}";
 
         var signature = SignMessage(message, keyFile, mode);
 
@@ -114,6 +116,22 @@ public class SshAuthHandler
         request.Headers.Add("X-SSH-Signature", signature);
     }
 
+
+    private static string BuildPathAndQuery(HttpRequestMessage request)
+    {
+        if (request.RequestUri is null)
+            throw new InvalidOperationException("Request URI is required for SSH request signing.");
+
+        var uri = request.RequestUri;
+        if (uri.IsAbsoluteUri)
+            return uri.PathAndQuery;
+
+        var raw = uri.OriginalString;
+        if (string.IsNullOrWhiteSpace(raw))
+            return "/";
+
+        return raw.StartsWith('/') ? raw : "/" + raw;
+    }
     private string SignMessage(string message, PrivateKeyFile keyFile, SignatureEncodingMode mode)
     {
         // On non-Windows, try using ssh-keygen directly for more reliable signing

@@ -160,11 +160,46 @@ public class SenfApiException : Exception
     {
         var errorMsg = ExtractErrorMessage(responseBody);
         var statusCodeNumber = (int)statusCode;
+        var friendlyError = MapUserFriendlyAuthError(statusCode, errorMsg);
+
+        if (!string.IsNullOrEmpty(friendlyError))
+            return $"{statusCodeNumber} {statusCode} - {friendlyError}";
 
         if (!string.IsNullOrEmpty(errorMsg))
             return $"{statusCodeNumber} {statusCode} - {errorMsg}";
 
         return $"{statusCodeNumber} {statusCode} - {message}";
+    }
+
+    private static string? MapUserFriendlyAuthError(HttpStatusCode statusCode, string? errorMsg)
+    {
+        if (string.IsNullOrWhiteSpace(errorMsg))
+            return null;
+
+        var normalized = errorMsg.ToLowerInvariant();
+
+        if (statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.BadRequest)
+        {
+            if (normalized.Contains("invalid signature") ||
+                normalized.Contains("request-signing") ||
+                normalized.Contains("signature mismatch"))
+            {
+                return "Authentication failed: invalid signature (request-signing mismatch).";
+            }
+
+            if (normalized.Contains("nonce already used") || normalized.Contains("replay"))
+            {
+                return "Authentication failed: nonce already used. Retry so the request is signed again.";
+            }
+        }
+
+        if (normalized.Contains("rsa") && (normalized.Contains("too weak") || normalized.Contains("2048")))
+            return "SSH key rejected: RSA key too weak. Use RSA >= 2048 bits.";
+
+        if (normalized.Contains("unsupported key format") || normalized.Contains("unsupported key") || normalized.Contains("invalid key format"))
+            return "SSH key rejected: unsupported key format. Use ssh-ed25519 or ssh-rsa (>= 2048 bits).";
+
+        return null;
     }
 
     private static string? ExtractErrorMessage(string responseBody)
