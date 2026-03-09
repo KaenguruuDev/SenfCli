@@ -12,8 +12,13 @@ public static class ProfileCommandHandler
 			config.Profiles[profileName] = profile;
 		}
 
+		var credentialsChanged = false;
+
 		if (!string.IsNullOrEmpty(username))
+		{
 			profile.Username = username;
+			credentialsChanged = true;
+		}
 
 		if (!string.IsNullOrEmpty(sshKeyPath))
 		{
@@ -24,6 +29,7 @@ public static class ProfileCommandHandler
 			}
 
 			profile.SshKeyPath = sshKeyPath;
+			credentialsChanged = true;
 		}
 
 		if (!string.IsNullOrEmpty(apiUrl))
@@ -36,7 +42,11 @@ public static class ProfileCommandHandler
 			}
 
 			profile.ApiUrl = apiUrl;
+			credentialsChanged = true;
 		}
+
+		if (credentialsChanged)
+			profile.SshKeyId = -1;
 
 		if (setAsDefault)
 			config.DefaultProfile = profileName;
@@ -49,31 +59,31 @@ public static class ProfileCommandHandler
 			{
 				ConsoleHelper.WriteInfo("Verifying SSH key with backend...");
 				var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
-
 				var ourFingerprint = authHandler.GetPublicKeyString();
 
 				var client = new SenfApiClient(profile.ApiUrl, authHandler);
 				var response = await client.GetSshKeysAsync();
-				if (response?.Keys != null && response.Keys.Count > 0)
+				if (response?.Keys == null || response.Keys.Count == 0)
 				{
-					var matchingKey = response.Keys.FirstOrDefault(k => k.Fingerprint == ourFingerprint);
-
-					if (matchingKey != null)
-					{
-						profile.SshKeyId = matchingKey.Id;
-						ConsoleHelper.WriteSuccess($"SSH key verified (Key ID: {matchingKey.Id})");
-					}
-					else
-					{
-						ConsoleHelper.WriteWarning(
-							"SSH key authenticated but no matching key found in backend. You may need to register your public key.");
-					}
+					ConsoleHelper.WriteError("SSH key verification failed: backend returned no registered SSH keys.");
+					Environment.Exit(1);
 				}
+
+				var matchingKey = response.Keys.FirstOrDefault(k => k.Fingerprint == ourFingerprint);
+				if (matchingKey == null)
+				{
+					ConsoleHelper.WriteError("SSH key verification failed: no matching key found in backend.");
+					ConsoleHelper.WriteDetail("Register the corresponding public key, then run 'senf profile set' again.");
+					Environment.Exit(1);
+				}
+
+				profile.SshKeyId = matchingKey.Id;
+				ConsoleHelper.WriteSuccess($"SSH key verified (Key ID: {matchingKey.Id})");
 			}
 			catch (Exception ex)
 			{
 				ConsoleHelper.WriteError($"Failed to verify SSH key with backend: {ex.Message}");
-				ConsoleHelper.WriteDetail("The profile will be saved, but SSH key verification failed.");
+				Environment.Exit(1);
 			}
 		}
 
@@ -89,11 +99,10 @@ public static class ProfileCommandHandler
 		if (!string.IsNullOrEmpty(apiUrl))
 			ConsoleHelper.WriteDetail($"API URL: {apiUrl}");
 
-		if (profile.SshKeyId > -1)
-			ConsoleHelper.WriteDetail($"SSH Key ID: {profile.SshKeyId}");
+		ConsoleHelper.WriteDetail($"SSH Key ID: {profile.SshKeyId}");
 
 		if (setAsDefault)
-			ConsoleHelper.WriteDetail($"Set as default profile");
+			ConsoleHelper.WriteDetail("Set as default profile");
 	}
 
 	public static void ListProfiles()
@@ -117,8 +126,7 @@ public static class ProfileCommandHandler
 			ConsoleHelper.WriteDetail($"Username: {profile.Username}");
 			ConsoleHelper.WriteDetail($"SSH Key: {profile.SshKeyPath}");
 			ConsoleHelper.WriteDetail($"API URL: {profile.ApiUrl}");
-			if (profile.SshKeyId > -1)
-				ConsoleHelper.WriteDetail($"SSH Key ID: {profile.SshKeyId}");
+			ConsoleHelper.WriteDetail($"SSH Key ID: {profile.SshKeyId}");
 		}
 	}
 
