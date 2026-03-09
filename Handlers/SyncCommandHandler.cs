@@ -4,15 +4,33 @@ namespace SenfCli.Handlers;
 
 public static class SyncCommandHandler
 {
+	private static string DescribeShareMode(ShareMode mode)
+		=> mode == ShareMode.ReadWrite ? "read-write" : "read-only";
+
+	private static async Task<SharedEnvFileResponse?> GetSharedEnvFileAsync(SenfApiClient client, string projectName)
+	{
+		var sharedResponse = await client.GetSharedFilesAsync();
+		var sharedFiles = sharedResponse?.Files ?? [];
+		var match = sharedFiles.FirstOrDefault(f =>
+			string.Equals(f.EnvFileName, projectName, StringComparison.OrdinalIgnoreCase));
+
+		if (match == null)
+			return null;
+
+		var detailed = await client.GetSharedFileAsync(match.ShareId);
+		return detailed ?? match;
+	}
+
 	private static SshProfile LoadAndValidateProfileForProject(Config config, ProjectConfig project)
 	{
 		var profile = config.GetProfileForProject(project);
 		if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
-		    string.IsNullOrWhiteSpace(profile.SshKeyPath))
+			string.IsNullOrWhiteSpace(profile.SshKeyPath) ||
+			profile.SshKeyId < 0)
 		{
 			ConsoleHelper.WriteError("SSH credentials not configured.");
 			ConsoleHelper.WriteDetail(
-				"Run 'senf profile set <profile-name> --username <username> --ssh-key <path>' first.");
+				"Run 'senf profile set <profile-name> --username <username> --ssh-key <path> --api-url <url>' first.");
 
 			if (!string.IsNullOrEmpty(project.ProfileName))
 				ConsoleHelper.WriteDetail($"This project uses profile: {project.ProfileName}");
@@ -77,9 +95,21 @@ public static class SyncCommandHandler
 
 		var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
 		var client = new SenfApiClient(profile.ApiUrl, authHandler);
+		var sharedFile = await GetSharedEnvFileAsync(client, project.ProjectName);
+		var isShared = sharedFile != null;
+		if (isShared && sharedFile!.ShareMode == ShareMode.ReadOnly)
+		{
+			ConsoleHelper.WriteError(
+				$"This env file is shared with {DescribeShareMode(sharedFile.ShareMode)} access. Push is not allowed.");
+			Environment.Exit(1);
+		}
 
-		var latestRemote = await client.GetEnvFileAsync(project.ProjectName);
-		var latestRemoteHash = latestRemote != null ? Config.ComputeStringHash(latestRemote.Content!) : null;
+		EnvFileResponse? latestRemote = null;
+		if (!isShared)
+			latestRemote = await client.GetEnvFileAsync(project.ProjectName);
+
+		var latestRemoteContent = isShared ? sharedFile!.Content : latestRemote?.Content;
+		var latestRemoteHash = latestRemoteContent != null ? Config.ComputeStringHash(latestRemoteContent) : null;
 
 		var storedHashInfo = Config.GetFileHash(project.ProjectName, profile.SshKeyId)?.Hash;
 
@@ -92,21 +122,21 @@ public static class SyncCommandHandler
 			switch (response)
 			{
 				case "r" or "reconcile":
-				{
-					await Reconcile();
-					ConsoleHelper.Ask("Do you want to push the merged file now? (y/n): ");
-					var pushResp = Console.ReadLine()?.Trim().ToLower();
-					if (pushResp != "y" && pushResp != "yes")
 					{
-						ConsoleHelper.WriteInfo("Push cancelled after reconcile.");
-						return;
-					}
+						await Reconcile();
+						ConsoleHelper.Ask("Do you want to push the merged file now? (y/n): ");
+						var pushResp = Console.ReadLine()?.Trim().ToLower();
+						if (pushResp != "y" && pushResp != "yes")
+						{
+							ConsoleHelper.WriteInfo("Push cancelled after reconcile.");
+							return;
+						}
 
-					// Re-read content and recompute hash after reconcile
-					content = await File.ReadAllTextAsync(project.EnvPath);
-					fileHash = Config.ComputeFileHash(project.EnvPath);
-					break;
-				}
+						// Re-read content and recompute hash after reconcile
+						content = await File.ReadAllTextAsync(project.EnvPath);
+						fileHash = Config.ComputeFileHash(project.EnvPath);
+						break;
+					}
 				case "o":
 				case "overwrite":
 					// proceed with overwrite
@@ -119,19 +149,32 @@ public static class SyncCommandHandler
 
 		try
 		{
-			await client.UpdateEnvFileAsync(project.ProjectName, content);
+			if (isShared)
+				await client.UpdateSharedFileAsync(sharedFile!.ShareId, content);
+			else
+				await client.UpdateEnvFileAsync(project.ProjectName, content);
+
 			ConsoleHelper.WriteSuccess($"Pushed env file for project '{project.ProjectName}'");
 
-			if (profile.SshKeyId > -1)
-				Config.SaveFileHash(project.ProjectName, profile.SshKeyId, fileHash);
+			Config.SaveFileHash(project.ProjectName, profile.SshKeyId, fileHash);
+		}
+		catch (SenfApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+		{
+			ConsoleHelper.WriteError("You do not have write access to this shared env file.");
+			Environment.Exit(1);
 		}
 		catch (SenfApiException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
 		{
+			if (isShared)
+			{
+				ConsoleHelper.WriteError("Shared env file not found or access revoked.");
+				Environment.Exit(1);
+			}
+
 			await client.CreateOrReplaceEnvFileAsync(project.ProjectName, content);
 			ConsoleHelper.WriteSuccess($"Created project '{project.ProjectName}' and pushed env file");
 
-			if (profile.SshKeyId > -1)
-				Config.SaveFileHash(project.ProjectName, profile.SshKeyId, fileHash);
+			Config.SaveFileHash(project.ProjectName, profile.SshKeyId, fileHash);
 		}
 	}
 
@@ -154,7 +197,7 @@ public static class SyncCommandHandler
 			Environment.Exit(1);
 		}
 
-		if (File.Exists(project.EnvPath) && profile.SshKeyId > -1)
+		if (File.Exists(project.EnvPath))
 		{
 			var currentHash = Config.ComputeFileHash(project.EnvPath);
 			var storedHashInfo = Config.GetFileHash(project.ProjectName, profile.SshKeyId);
@@ -183,21 +226,11 @@ public static class SyncCommandHandler
 		}
 
 		var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
-		try
-		{
-			authHandler.TestKeyLoad();
-		}
-		catch (Exception ex)
-		{
-			ConsoleHelper.WriteError($"Failed to load SSH key: {ex.Message}");
-			ConsoleHelper.WriteDetail($"Key path: {profile.SshKeyPath}");
-			Environment.Exit(1);
-		}
-
 		var client = new SenfApiClient(profile.ApiUrl, authHandler);
 		var envFile = await client.GetEnvFileAsync(project.ProjectName);
+		var sharedFile = envFile == null ? await GetSharedEnvFileAsync(client, project.ProjectName) : null;
 
-		if (envFile is null)
+		if (envFile is null && sharedFile is null)
 		{
 			ConsoleHelper.WriteError($"Env file not found on server for project '{project.ProjectName}'");
 			Environment.Exit(1);
@@ -207,14 +240,15 @@ public static class SyncCommandHandler
 		if (!Directory.Exists(directory))
 			Directory.CreateDirectory(directory!);
 
-		await File.WriteAllTextAsync(project.EnvPath, envFile.Content ?? string.Empty);
-		if (profile.SshKeyId > -1)
-		{
-			var newHash = Config.ComputeFileHash(project.EnvPath);
-			Config.SaveFileHash(project.ProjectName, profile.SshKeyId, newHash);
-		}
+		var contentToWrite = envFile?.Content ?? sharedFile?.Content ?? string.Empty;
+		await File.WriteAllTextAsync(project.EnvPath, contentToWrite);
+		var newHash = Config.ComputeFileHash(project.EnvPath);
+		Config.SaveFileHash(project.ProjectName, profile.SshKeyId, newHash);
 
-		ConsoleHelper.WriteSuccess($"Pulled env file for project '{project.ProjectName}'");
+		if (sharedFile != null)
+			ConsoleHelper.WriteSuccess($"Pulled shared env file for project '{project.ProjectName}'");
+		else
+			ConsoleHelper.WriteSuccess($"Pulled env file for project '{project.ProjectName}'");
 		ConsoleHelper.WriteDetail($"Saved to: {project.EnvPath}");
 	}
 
@@ -244,8 +278,9 @@ public static class SyncCommandHandler
 		var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
 		var client = new SenfApiClient(profile.ApiUrl, authHandler);
 		var remote = await client.GetEnvFileAsync(project.ProjectName);
+		var sharedRemote = remote == null ? await GetSharedEnvFileAsync(client, project.ProjectName) : null;
 
-		if (remote == null)
+		if (remote == null && sharedRemote == null)
 		{
 			ConsoleHelper.WriteWarning($"No env file exists on server for project '{project.ProjectName}'.");
 			Console.Write("Create remote from local and push? (Y/n): ");
@@ -254,9 +289,8 @@ public static class SyncCommandHandler
 			{
 				await client.CreateOrReplaceEnvFileAsync(project.ProjectName, localContent);
 				ConsoleHelper.WriteSuccess("Created remote env file from local content.");
-				if (profile.SshKeyId > -1)
-					Config.SaveFileHash(project.ProjectName, profile.SshKeyId,
-						Config.ComputeStringHash(localContent));
+				Config.SaveFileHash(project.ProjectName, profile.SshKeyId,
+					Config.ComputeStringHash(localContent));
 				return;
 			}
 
@@ -264,7 +298,7 @@ public static class SyncCommandHandler
 			return;
 		}
 
-		var remoteContent = remote.Content ?? string.Empty;
+		var remoteContent = remote?.Content ?? sharedRemote?.Content ?? string.Empty;
 
 		if (localContent == remoteContent)
 		{
@@ -352,11 +386,8 @@ public static class SyncCommandHandler
 		await File.WriteAllTextAsync(project.EnvPath, outContent);
 		ConsoleHelper.WriteSuccess($"Wrote merged env to: {project.EnvPath}");
 
-		if (profile.SshKeyId > -1)
-		{
-			var newHash = Config.ComputeFileHash(project.EnvPath);
-			Config.SaveFileHash(project.ProjectName, profile.SshKeyId, newHash);
-		}
+		var newHash = Config.ComputeFileHash(project.EnvPath);
+		Config.SaveFileHash(project.ProjectName, profile.SshKeyId, newHash);
 
 		ConsoleHelper.WriteDetail("Resolve any remaining issues and run 'senf push' to update remote.");
 	}

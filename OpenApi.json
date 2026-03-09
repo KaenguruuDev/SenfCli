@@ -6,10 +6,26 @@
     },
     "servers": [
         {
-            "url": "http://127.0.0.1:5000/"
+            "url": "http://localhost:5000/"
         }
     ],
     "paths": {
+        "/healthz": {
+            "get": {
+                "tags": [
+                    "HealthRoutes"
+                ],
+                "operationId": "GetHealth",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "503": {
+                        "description": "Service Unavailable"
+                    }
+                }
+            }
+        },
         "/env": {
             "get": {
                 "tags": [
@@ -41,7 +57,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -51,7 +67,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -91,7 +107,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -101,7 +117,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -144,7 +160,17 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -174,7 +200,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -184,7 +210,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -228,7 +254,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -238,7 +264,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -276,7 +302,17 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
                                 }
                             }
                         }
@@ -308,6 +344,292 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "tags": [
+                    "UsersRoutes"
+                ],
+                "operationId": "GetUsers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UsersListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/share": {
+            "post": {
+                "tags": [
+                    "Sharing"
+                ],
+                "operationId": "ShareEnvFile",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ShareEnvFileRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ShareResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Sharing"
+                ],
+                "operationId": "RemoveShare",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoveEnvShareRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shares": {
+            "get": {
+                "tags": [
+                    "Sharing"
+                ],
+                "operationId": "GetActiveShares",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SharesListResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shared": {
+            "get": {
+                "tags": [
+                    "Sharing"
+                ],
+                "operationId": "GetSharedFiles",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SharedEnvFilesListResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shared/{shareId}": {
+            "get": {
+                "tags": [
+                    "Sharing"
+                ],
+                "operationId": "GetSharedFile",
+                "parameters": [
+                    {
+                        "name": "shareId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "pattern": "^-?(?:0|[1-9]\\d*)$",
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SharedEnvFileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Sharing"
+                ],
+                "operationId": "UpdateSharedFile",
+                "parameters": [
+                    {
+                        "name": "shareId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "pattern": "^-?(?:0|[1-9]\\d*)$",
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EnvFileUpdateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -386,6 +708,218 @@
                     }
                 }
             },
+            "ProblemDetails": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    },
+                    "title": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    },
+                    "status": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "null",
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "detail": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    },
+                    "instance": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    }
+                }
+            },
+            "RemoveEnvShareRequest": {
+                "type": "object",
+                "properties": {
+                    "envFileId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "shareToUserId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "null",
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    }
+                }
+            },
+            "SharedEnvFileResponse": {
+                "type": "object",
+                "properties": {
+                    "shareId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "envFileId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "envFileName": {
+                        "type": "string"
+                    },
+                    "ownerUserId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "ownerUsername": {
+                        "type": "string"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "lastUpdatedByKeyId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "shareMode": {
+                        "$ref": "#/components/schemas/ShareMode"
+                    },
+                    "sharedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "SharedEnvFilesListResponse": {
+                "type": "object",
+                "properties": {
+                    "files": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SharedEnvFileResponse"
+                        }
+                    }
+                }
+            },
+            "ShareEnvFileRequest": {
+                "type": "object",
+                "properties": {
+                    "envFileId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "shareToUserId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "shareMode": {
+                        "$ref": "#/components/schemas/ShareMode"
+                    }
+                }
+            },
+            "ShareMode": {
+                "type": "integer"
+            },
+            "ShareResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "envFileId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "envFileName": {
+                        "type": "string"
+                    },
+                    "sharedToUserId": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "sharedToUsername": {
+                        "type": "string"
+                    },
+                    "shareMode": {
+                        "$ref": "#/components/schemas/ShareMode"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "SharesListResponse": {
+                "type": "object",
+                "properties": {
+                    "shares": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ShareResponse"
+                        }
+                    }
+                }
+            },
             "SshKeyCreateRequest": {
                 "type": "object",
                 "properties": {
@@ -433,15 +967,51 @@
                         }
                     }
                 }
+            },
+            "UsersListResponse": {
+                "type": "object",
+                "properties": {
+                    "users": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserSummaryResponse"
+                        }
+                    }
+                }
+            },
+            "UserSummaryResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ],
+                        "format": "int32"
+                    },
+                    "username": {
+                        "type": "string"
+                    }
+                }
             }
         }
     },
     "tags": [
         {
+            "name": "HealthRoutes"
+        },
+        {
             "name": "EnvFilesRoutes"
         },
         {
             "name": "SshKeysRoutes"
+        },
+        {
+            "name": "UsersRoutes"
+        },
+        {
+            "name": "Sharing"
         }
     ]
 }

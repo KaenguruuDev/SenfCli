@@ -49,6 +49,9 @@ public class Config
 	[JsonPropertyName("default_profile")]
 	public string? DefaultProfile { get; set; }
 
+	[JsonPropertyName("confirm_ssh_keygen_temp_files")]
+	public bool ConfirmSshKeygenTempFiles { get; set; }
+
 	[JsonPropertyName("profiles")]
 	public Dictionary<string, SshProfile> Profiles { get; set; } = new();
 
@@ -139,7 +142,7 @@ public class Config
 			return null;
 
 		if (!string.IsNullOrEmpty(project.ProfileName) &&
-		    Profiles.TryGetValue(project.ProfileName, out var projectProfile))
+			Profiles.TryGetValue(project.ProfileName, out var projectProfile))
 			return projectProfile;
 
 		if (!string.IsNullOrEmpty(DefaultProfile) && Profiles.TryGetValue(DefaultProfile, out var defaultProfile))
@@ -162,12 +165,12 @@ public class Config
 	}
 
 	public static string ComputeStringHash(string content)
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
-        return Convert.ToHexString(hash);
-    }
+	{
+		var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+		return Convert.ToHexString(hash);
+	}
 
-    public static void SaveFileHash(string projectName, int sshKeyId, string hash)
+	public static void SaveFileHash(string projectName, int sshKeyId, string hash)
 	{
 		if (!Directory.Exists(ConfigDir))
 			Directory.CreateDirectory(ConfigDir);
@@ -196,7 +199,7 @@ public class Config
 		{
 			var json = File.ReadAllText(FileHashesFile);
 			return JsonSerializer.Deserialize<Dictionary<string, FileHashInfo>>(json, JsonOptions) ??
-			       new Dictionary<string, FileHashInfo>();
+				   new Dictionary<string, FileHashInfo>();
 		}
 		catch
 		{

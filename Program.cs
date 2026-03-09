@@ -202,3 +202,35 @@ public class KeyDeleteCommand
 	public async Task RunAsync()
 		=> await KeyCommandHandler.DeleteSshKey(KeyId, Profile);
 }
+
+[CliCommand(Description = "Manage env file sharing", Name = "share", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+public class ShareCommand
+{
+	public void Run()
+		=> ConsoleHelper.WriteInfo("Use 'senf share --help' to see available subcommands");
+}
+
+[CliCommand(Description = "Create a share for the current project", Name = "create", Parent = typeof(ShareCommand))]
+public class ShareCreateCommand
+{
+	public async Task RunAsync()
+		=> await ShareCommandHandler.CreateShare();
+}
+
+[CliCommand(Description = "Show share status", Name = "status", Parent = typeof(ShareCommand))]
+public class ShareStatusCommand
+{
+	[CliOption(Description = "Show all active shares")]
+	public bool All { get; set; }
+
+	public async Task RunAsync()
+		=> await ShareCommandHandler.ShowStatus(All);
+}
+
+[CliCommand(Description = "Remove a share for the current project", Name = "remove", Parent = typeof(ShareCommand))]
+public class ShareRemoveCommand
+{
+	public async Task RunAsync()
+		=> await ShareCommandHandler.RemoveShare();
+}

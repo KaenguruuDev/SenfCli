@@ -5,41 +5,10 @@ public static class KeyCommandHandler
 	public static async Task ListSshKeys(string? profileName = null)
 	{
 		var config = Config.Load();
+		var profile = ResolveProfile(config, profileName);
+		ValidateProfile(profile);
 
-		SshProfile? profile = null;
-		if (!string.IsNullOrEmpty(profileName))
-		{
-			profile = config.GetProfile(profileName);
-			if (profile == null)
-			{
-				ConsoleHelper.WriteError($"Profile '{profileName}' not found.");
-				ConsoleHelper.WriteDetail("Run 'senf profile list' to see available profiles.");
-				Environment.Exit(1);
-			}
-		}
-		else
-		{
-			// Use default profile
-			if (!string.IsNullOrEmpty(config.DefaultProfile))
-			{
-				profile = config.GetProfile(config.DefaultProfile);
-			}
-			else if (config.Profiles.TryGetValue("default", out var defaultProfile))
-			{
-				profile = defaultProfile;
-			}
-		}
-
-		if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
-		    string.IsNullOrWhiteSpace(profile.SshKeyPath))
-		{
-			ConsoleHelper.WriteError("No valid profile configured.");
-			ConsoleHelper.WriteDetail(
-				"Run 'senf profile set <profile-name> --username <username> --ssh-key <path> --api-url <url>' first.");
-			Environment.Exit(1);
-		}
-
-		var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
+		var authHandler = new SshAuthHandler(profile!.SshKeyPath, profile.Username);
 		var client = new SenfApiClient(profile.ApiUrl, authHandler);
 
 		var response = await client.GetSshKeysAsync();
@@ -55,7 +24,7 @@ public static class KeyCommandHandler
 		{
 			ConsoleHelper.WriteInfo($"ID: {key.Id}");
 			ConsoleHelper.WriteDetail($"Name: {key.Name}");
-			ConsoleHelper.WriteDetail($"Fingerprint: {key.Fingerprint}");
+			ConsoleHelper.WriteDetail($"Fingerprint: {SshAuthHandler.GetPublicKeyFingerprint(key.PublicKey ?? "")}");
 			ConsoleHelper.WriteDetail($"Created: {key.CreatedAt:yyyy-MM-dd HH:mm:ss}");
 			ConsoleHelper.WriteInfo("");
 		}
@@ -64,40 +33,8 @@ public static class KeyCommandHandler
 	public static async Task AddSshKey(string publicKey, string keyName, string? profileName = null)
 	{
 		var config = Config.Load();
-
-		// Get the profile (specified or default)
-		SshProfile? profile = null;
-		if (!string.IsNullOrEmpty(profileName))
-		{
-			profile = config.GetProfile(profileName);
-			if (profile == null)
-			{
-				ConsoleHelper.WriteError($"Profile '{profileName}' not found.");
-				ConsoleHelper.WriteDetail("Run 'senf profile list' to see available profiles.");
-				Environment.Exit(1);
-			}
-		}
-		else
-		{
-			// Use default profile
-			if (!string.IsNullOrEmpty(config.DefaultProfile))
-			{
-				profile = config.GetProfile(config.DefaultProfile);
-			}
-			else if (config.Profiles.TryGetValue("default", out var defaultProfile))
-			{
-				profile = defaultProfile;
-			}
-		}
-
-		if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
-		    string.IsNullOrWhiteSpace(profile.SshKeyPath))
-		{
-			ConsoleHelper.WriteError("No valid profile configured.");
-			ConsoleHelper.WriteDetail(
-				"Run 'senf profile set <profile-name> --username <username> --ssh-key <path> --api-url <url>' first.");
-			Environment.Exit(1);
-		}
+		var profile = ResolveProfile(config, profileName);
+		ValidateProfile(profile);
 
 		if (string.IsNullOrWhiteSpace(publicKey))
 		{
@@ -112,7 +49,7 @@ public static class KeyCommandHandler
 			Environment.Exit(1);
 		}
 
-		var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
+		var authHandler = new SshAuthHandler(profile!.SshKeyPath, profile.Username);
 		var client = new SenfApiClient(profile.ApiUrl, authHandler);
 
 		var response = await client.CreateSshKeyAsync(publicKey, keyName);
@@ -121,53 +58,56 @@ public static class KeyCommandHandler
 		{
 			ConsoleHelper.WriteSuccess($"SSH key '{keyName}' added successfully");
 			ConsoleHelper.WriteDetail($"ID: {response.Id}");
-			ConsoleHelper.WriteDetail($"Fingerprint: {response.Fingerprint}");
+			ConsoleHelper.WriteDetail($"Fingerprint: {SshAuthHandler.GetPublicKeyFingerprint(response.PublicKey ?? "")}");
 		}
 	}
 
 	public static async Task DeleteSshKey(int keyId, string? profileName = null)
 	{
 		var config = Config.Load();
+		var profile = ResolveProfile(config, profileName);
+		ValidateProfile(profile);
 
-		// Get the profile (specified or default)
-		SshProfile? profile = null;
+		var authHandler = new SshAuthHandler(profile!.SshKeyPath, profile.Username);
+		var client = new SenfApiClient(profile.ApiUrl, authHandler);
+
+		await client.DeleteSshKeyAsync(keyId);
+		ConsoleHelper.WriteSuccess($"SSH key {keyId} deleted successfully");
+	}
+
+	private static SshProfile? ResolveProfile(Config config, string? profileName)
+	{
 		if (!string.IsNullOrEmpty(profileName))
 		{
-			profile = config.GetProfile(profileName);
+			var profile = config.GetProfile(profileName);
 			if (profile == null)
 			{
 				ConsoleHelper.WriteError($"Profile '{profileName}' not found.");
 				ConsoleHelper.WriteDetail("Run 'senf profile list' to see available profiles.");
 				Environment.Exit(1);
 			}
-		}
-		else
-		{
-			// Use default profile
-			if (!string.IsNullOrEmpty(config.DefaultProfile))
-			{
-				profile = config.GetProfile(config.DefaultProfile);
-			}
-			else if (config.Profiles.TryGetValue("default", out var defaultProfile))
-			{
-				profile = defaultProfile;
-			}
+
+			return profile;
 		}
 
+		if (!string.IsNullOrEmpty(config.DefaultProfile))
+			return config.GetProfile(config.DefaultProfile);
+
+		return config.Profiles.TryGetValue("default", out var defaultProfile) ? defaultProfile : null;
+	}
+
+	private static void ValidateProfile(SshProfile? profile)
+	{
 		if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
-		    string.IsNullOrWhiteSpace(profile.SshKeyPath))
+		    string.IsNullOrWhiteSpace(profile.SshKeyPath) ||
+		    profile.SshKeyId < 0)
 		{
 			ConsoleHelper.WriteError("No valid profile configured.");
 			ConsoleHelper.WriteDetail(
 				"Run 'senf profile set <profile-name> --username <username> --ssh-key <path> --api-url <url>' first.");
+			ConsoleHelper.WriteDetail("Profile must have a verified SSH key ID.");
 			Environment.Exit(1);
 		}
-
-		var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
-		var client = new SenfApiClient(profile.ApiUrl, authHandler);
-
-		await client.DeleteSshKeyAsync(keyId);
-		ConsoleHelper.WriteSuccess($"SSH key {keyId} deleted successfully");
 	}
 
 	private static bool TryValidatePublicKeyForOnboarding(string publicKey, out string error)
