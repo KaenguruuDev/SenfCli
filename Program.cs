@@ -88,7 +88,7 @@ public class ProfileSetCommand
 	[CliOption(Description = "Path to SSH private key")]
 	public string? SshKey { get; set; }
 
-	[CliOption(Description = "API URL for the backend")]
+	[CliOption(Description = "API URL for the backend", Required = false)]
 	public string? ApiUrl { get; set; }
 
 	[CliOption(Description = "Set as default profile")]
@@ -233,4 +233,108 @@ public class ShareRemoveCommand
 {
 	public async Task RunAsync()
 		=> await ShareCommandHandler.RemoveShare();
+}
+
+[CliCommand(Description = "Admin operations", Name = "admin", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+public class AdminCommand
+{
+	public void Run()
+		=> ConsoleHelper.WriteInfo("Use 'senf admin --help' to see available subcommands");
+}
+
+[CliCommand(Description = "Manage invites", Name = "invite", Parent = typeof(AdminCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+public class AdminInviteCommand
+{
+	public void Run()
+		=> ConsoleHelper.WriteInfo("Use 'senf admin invite --help' to see available subcommands");
+}
+
+[CliCommand(Description = "Create a new invite", Name = "create", Parent = typeof(AdminInviteCommand))]
+public class AdminInviteCreateCommand
+{
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
+
+	public async Task RunAsync()
+		=> await InviteCommandHandler.CreateInvite(Profile);
+}
+
+[CliCommand(Description = "List invites", Name = "list", Parent = typeof(AdminInviteCommand))]
+public class AdminInviteListCommand
+{
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
+
+	public async Task RunAsync()
+		=> await InviteCommandHandler.ListInvites(Profile);
+}
+
+[CliCommand(Description = "Remove an invite", Name = "remove", Parent = typeof(AdminInviteCommand))]
+public class AdminInviteRemoveCommand
+{
+	[CliArgument(Description = "Invite token")]
+	public string Token { get; set; } = null!;
+
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
+
+	public async Task RunAsync()
+		=> await InviteCommandHandler.RemoveInvite(Token, Profile);
+}
+
+[CliCommand(Description = "Manage users", Name = "users", Parent = typeof(AdminCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+public class AdminUsersCommand
+{
+	public void Run()
+		=> ConsoleHelper.WriteInfo("Use 'senf admin users --help' to see available subcommands");
+}
+
+[CliCommand(Description = "List users", Name = "list", Parent = typeof(AdminUsersCommand))]
+public class AdminUsersListCommand
+{
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
+
+	public async Task RunAsync()
+		=> await AdminUsersCommandHandler.ListUsers(Profile);
+}
+
+[CliCommand(Description = "Remove a user", Name = "remove", Parent = typeof(AdminUsersCommand))]
+public class AdminUsersRemoveCommand
+{
+	[CliArgument(Description = "User ID to delete")]
+	public int UserId { get; set; }
+
+	[CliOption(Description = "Profile to use (defaults to default profile)", Required = false)]
+	public string? Profile { get; set; }
+
+	public async Task RunAsync()
+		=> await AdminUsersCommandHandler.RemoveUser(UserId, Profile);
+}
+
+[CliCommand(Description = "Join with an invite", Name = "join", Parent = typeof(RootCommand),
+	ShortFormAutoGenerate = CliNameAutoGenerate.None)]
+public class JoinCommand
+{
+	[CliOption(Description = "API URL for the backend", Required = false)]
+	public string? ApiUrl { get; set; }
+
+	[CliOption(Description = "Invite token", Required = false)]
+	public string? Token { get; set; }
+
+	[CliOption(Description = "Username to join as", Required = false)]
+	public string? Username { get; set; }
+
+	[CliOption(Description = "SSH public key (repeatable)", Required = false)]
+	public string[]? Key { get; set; }
+
+	[CliOption(Description = "Path to SSH public key file (repeatable)", Required = false)]
+	public string[]? KeyFile { get; set; }
+
+	public async Task RunAsync()
+		=> await JoinCommandHandler.Join(ApiUrl, Token, Username,
+			Key?.ToList(), KeyFile?.ToList());
 }

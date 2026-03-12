@@ -45,7 +45,7 @@ public static class KeyCommandHandler
 		if (!TryValidatePublicKeyForOnboarding(publicKey, out var validationError))
 		{
 			ConsoleHelper.WriteError(validationError);
-			ConsoleHelper.WriteDetail("Supported formats: ssh-ed25519, ssh-rsa (RSA >= 2048 bits).");
+			ConsoleHelper.WriteDetail("Supported formats: ssh-ed25519.");
 			Environment.Exit(1);
 		}
 
@@ -99,8 +99,8 @@ public static class KeyCommandHandler
 	private static void ValidateProfile(SshProfile? profile)
 	{
 		if (profile == null || string.IsNullOrWhiteSpace(profile.Username) ||
-		    string.IsNullOrWhiteSpace(profile.SshKeyPath) ||
-		    profile.SshKeyId < 0)
+			string.IsNullOrWhiteSpace(profile.SshKeyPath) ||
+			profile.SshKeyId < 0)
 		{
 			ConsoleHelper.WriteError("No valid profile configured.");
 			ConsoleHelper.WriteDetail(
@@ -111,115 +111,5 @@ public static class KeyCommandHandler
 	}
 
 	private static bool TryValidatePublicKeyForOnboarding(string publicKey, out string error)
-	{
-		error = string.Empty;
-
-		var parts = publicKey.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-		if (parts.Length < 2)
-		{
-			error = "Unsupported key format: expected '<type> <base64> [comment]'.";
-			return false;
-		}
-
-		var keyType = parts[0];
-		var keyData = parts[1];
-
-		if (keyType == "ssh-ed25519")
-			return true;
-
-		if (keyType != "ssh-rsa")
-		{
-			error = $"Unsupported key format: '{keyType}'.";
-			return false;
-		}
-
-		if (!TryGetRsaBits(keyData, out var bits))
-		{
-			error = "Unsupported key format: unable to parse RSA key payload.";
-			return false;
-		}
-
-		if (bits < 2048)
-		{
-			error = $"RSA key too weak: {bits} bits detected, minimum is 2048 bits.";
-			return false;
-		}
-
-		return true;
-	}
-
-	private static bool TryGetRsaBits(string keyDataBase64, out int bits)
-	{
-		bits = 0;
-		byte[] data;
-		try
-		{
-			data = Convert.FromBase64String(keyDataBase64);
-		}
-		catch
-		{
-			return false;
-		}
-
-		var offset = 0;
-		if (!TryReadSshString(data, ref offset, out var typeBytes))
-			return false;
-
-		var type = System.Text.Encoding.ASCII.GetString(typeBytes);
-		if (type != "ssh-rsa")
-			return false;
-
-		if (!TryReadMpInt(data, ref offset, out _))
-			return false;
-
-		if (!TryReadMpInt(data, ref offset, out var modulus))
-			return false;
-
-		var start = 0;
-		while (start < modulus.Length && modulus[start] == 0)
-			start++;
-
-		if (start >= modulus.Length)
-			return false;
-
-		var first = modulus[start];
-		var leadingZeroBits = 0;
-		for (var i = 7; i >= 0; i--)
-		{
-			if (((first >> i) & 1) == 1)
-				break;
-			leadingZeroBits++;
-		}
-
-		bits = ((modulus.Length - start) * 8) - leadingZeroBits;
-		return bits > 0;
-	}
-
-	private static bool TryReadSshString(byte[] data, ref int offset, out byte[] value)
-	{
-		value = Array.Empty<byte>();
-		if (!TryReadUInt32(data, ref offset, out var len))
-			return false;
-		if (len < 0 || offset + len > data.Length)
-			return false;
-
-		value = new byte[len];
-		Buffer.BlockCopy(data, offset, value, 0, len);
-		offset += len;
-		return true;
-	}
-
-	private static bool TryReadMpInt(byte[] data, ref int offset, out byte[] value)
-		=> TryReadSshString(data, ref offset, out value);
-
-	private static bool TryReadUInt32(byte[] data, ref int offset, out int value)
-	{
-		value = 0;
-		if (offset + 4 > data.Length)
-			return false;
-
-		value = (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
-		offset += 4;
-		return true;
-	}
+		=> SshKeyValidation.TryValidateEd25519PublicKey(publicKey, out error);
 }

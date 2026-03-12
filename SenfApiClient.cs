@@ -9,20 +9,20 @@ public class SenfApiClient
 {
 	private static readonly HttpClient HttpClient = new();
 	private readonly string _apiUrl;
-	private readonly SshAuthHandler _sshAuthHandler;
+	private readonly SshAuthHandler? _sshAuthHandler;
 
 	public SenfApiClient(string apiUrl, SshAuthHandler authHandler)
 	{
 		_apiUrl = apiUrl;
 		_sshAuthHandler = authHandler;
+		ConfigureBaseAddress(apiUrl);
+	}
 
-		if (!Uri.TryCreate(apiUrl, UriKind.Absolute, out var uri))
-			throw new InvalidOperationException("Invalid API URL.");
-
-		if (uri.Scheme == Uri.UriSchemeHttp)
-			ConsoleHelper.WriteWarning("The connected profile is configured with an unsecured HTTP api.");
-
-		HttpClient.BaseAddress = uri;
+	public SenfApiClient(string apiUrl)
+	{
+		_apiUrl = apiUrl;
+		_sshAuthHandler = null;
+		ConfigureBaseAddress(apiUrl);
 	}
 
 	public async Task<EnvFileResponse?> GetEnvFileAsync(string name)
@@ -137,6 +137,80 @@ public class SenfApiClient
 		return JsonSerializer.Deserialize<UsersListResponse>(json);
 	}
 
+	public async Task DeleteUserAsync(int userId)
+	{
+		var response = await SendWithAuthRetryAsync(() =>
+			new HttpRequestMessage(HttpMethod.Delete, $"/users/{userId}"));
+
+		if (!response.IsSuccessStatusCode)
+		{
+			var errorContent = await response.Content.ReadAsStringAsync();
+			throw new SenfApiException("Failed to delete user", response.StatusCode, errorContent);
+		}
+	}
+
+	public async Task<InviteCreateResponse?> CreateInviteAsync()
+	{
+		var response = await SendWithAuthRetryAsync(() =>
+			new HttpRequestMessage(HttpMethod.Post, "/invites"));
+
+		if (!response.IsSuccessStatusCode)
+		{
+			var errorContent = await response.Content.ReadAsStringAsync();
+			throw new SenfApiException("Failed to create invite", response.StatusCode, errorContent);
+		}
+
+		var json = await response.Content.ReadAsStringAsync();
+		return JsonSerializer.Deserialize<InviteCreateResponse>(json);
+	}
+
+	public async Task<InviteListResponse?> ListInvitesAsync()
+	{
+		var response = await SendWithAuthRetryAsync(() =>
+			new HttpRequestMessage(HttpMethod.Get, "/invites"));
+
+		if (!response.IsSuccessStatusCode)
+		{
+			var errorContent = await response.Content.ReadAsStringAsync();
+			throw new SenfApiException("Failed to list invites", response.StatusCode, errorContent);
+		}
+
+		var json = await response.Content.ReadAsStringAsync();
+		return JsonSerializer.Deserialize<InviteListResponse>(json);
+	}
+
+	public async Task DeleteInviteAsync(string token)
+	{
+		var response = await SendWithAuthRetryAsync(() =>
+			new HttpRequestMessage(HttpMethod.Delete, $"/invites/{Uri.EscapeDataString(token)}"));
+
+		if (!response.IsSuccessStatusCode)
+		{
+			var errorContent = await response.Content.ReadAsStringAsync();
+			throw new SenfApiException("Failed to delete invite", response.StatusCode, errorContent);
+		}
+	}
+
+	public async Task<JoinResponse?> JoinWithInviteAsync(JoinRequest joinRequest)
+	{
+		var body = JsonSerializer.Serialize(joinRequest);
+		var response = await SendWithoutAuthAsync(() =>
+		{
+			var request = new HttpRequestMessage(HttpMethod.Post, "/join");
+			request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+			return request;
+		});
+
+		if (!response.IsSuccessStatusCode)
+		{
+			var errorContent = await response.Content.ReadAsStringAsync();
+			throw new SenfApiException("Failed to join with invite", response.StatusCode, errorContent);
+		}
+
+		var json = await response.Content.ReadAsStringAsync();
+		return JsonSerializer.Deserialize<JoinResponse>(json);
+	}
+
 	public async Task<ShareResponse?> ShareEnvFileAsync(int envFileId, int shareToUserId, ShareMode shareMode)
 	{
 		var body = JsonSerializer.Serialize(new { envFileId, shareToUserId, shareMode });
@@ -239,9 +313,33 @@ public class SenfApiClient
 
 	private async Task<HttpResponseMessage> SendWithAuthRetryAsync(Func<HttpRequestMessage> requestFactory)
 	{
+		EnsureAuthConfigured();
 		var request = requestFactory();
-		_sshAuthHandler.AddAuthHeaders(request);
+		_sshAuthHandler!.AddAuthHeaders(request);
 		return await HttpClient.SendAsync(request);
+	}
+
+	private async Task<HttpResponseMessage> SendWithoutAuthAsync(Func<HttpRequestMessage> requestFactory)
+	{
+		var request = requestFactory();
+		return await HttpClient.SendAsync(request);
+	}
+
+	private void EnsureAuthConfigured()
+	{
+		if (_sshAuthHandler == null)
+			throw new InvalidOperationException("This request requires SSH authentication.");
+	}
+
+	private static void ConfigureBaseAddress(string apiUrl)
+	{
+		if (!Uri.TryCreate(apiUrl, UriKind.Absolute, out var uri))
+			throw new InvalidOperationException("Invalid API URL.");
+
+		if (uri.Scheme == Uri.UriSchemeHttp)
+			ConsoleHelper.WriteWarning("The connected profile is configured with an unsecured HTTP api.");
+
+		HttpClient.BaseAddress = uri;
 	}
 }
 
@@ -276,8 +374,8 @@ public class SenfApiException(string message, HttpStatusCode statusCode, string 
 		if (statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.BadRequest)
 		{
 			if (normalized.Contains("invalid signature") ||
-			    normalized.Contains("request-signing") ||
-			    normalized.Contains("signature mismatch"))
+				normalized.Contains("request-signing") ||
+				normalized.Contains("signature mismatch"))
 			{
 				return "Authentication failed: invalid signature (request-signing mismatch).";
 			}
@@ -289,7 +387,7 @@ public class SenfApiException(string message, HttpStatusCode statusCode, string 
 		}
 
 		if (normalized.Contains("unsupported key format") || normalized.Contains("unsupported key") ||
-		    normalized.Contains("invalid key format"))
+			normalized.Contains("invalid key format"))
 			return "SSH key rejected: unsupported key format. Use ssh-ed25519.";
 
 		return null;
@@ -320,6 +418,66 @@ public class SenfApiException(string message, HttpStatusCode statusCode, string 
 
 		return null;
 	}
+}
+
+public class InviteCreateResponse
+{
+	[JsonPropertyName("token")]
+	public string? Token { get; set; }
+
+	[JsonPropertyName("joinUrl")]
+	public string? JoinUrl { get; set; }
+
+	[JsonPropertyName("expiresAt")]
+	public DateTime ExpiresAt { get; set; }
+}
+
+public class InviteListResponse
+{
+	[JsonPropertyName("invites")]
+	public List<InviteSummaryResponse> Invites { get; set; } = [];
+}
+
+public class InviteSummaryResponse
+{
+	[JsonPropertyName("token")]
+	public string? Token { get; set; }
+
+	[JsonPropertyName("createdByUserId")]
+	public int CreatedByUserId { get; set; }
+
+	[JsonPropertyName("createdByUsername")]
+	public string? CreatedByUsername { get; set; }
+
+	[JsonPropertyName("createdAt")]
+	public DateTime CreatedAt { get; set; }
+
+	[JsonPropertyName("expiresAt")]
+	public DateTime ExpiresAt { get; set; }
+
+	[JsonPropertyName("usedAt")]
+	public DateTime? UsedAt { get; set; }
+}
+
+public class JoinRequest
+{
+	[JsonPropertyName("token")]
+	public string? Token { get; set; }
+
+	[JsonPropertyName("username")]
+	public string? Username { get; set; }
+
+	[JsonPropertyName("publicKeys")]
+	public List<string> PublicKeys { get; set; } = [];
+}
+
+public class JoinResponse
+{
+	[JsonPropertyName("userId")]
+	public int UserId { get; set; }
+
+	[JsonPropertyName("username")]
+	public string? Username { get; set; }
 }
 
 public class EnvFileResponse
