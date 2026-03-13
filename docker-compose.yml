@@ -1,0 +1,10 @@
+services:
+  senfcli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /work
+    container_name: senf-cli
+    stdin_open: true
+    tty: true
+    command: ["sleep", "infinity"]
