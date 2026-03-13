@@ -73,9 +73,9 @@ if [ ! -w "$INSTALL_PATH" ]; then
     exit 1
 fi
 
-/bin/cat > "$SHIM_PATH" << "EOF"
+/bin/cat > "$SHIM_PATH" << EOF
 #!/usr/bin/env bash
-exec "$INSTALL_PATH/SenfCli" "$@"
+exec "$INSTALL_PATH/SenfCli" "\$@"
 EOF
 
 if [ ! -f "$SHIM_PATH" ]; then
