@@ -108,7 +108,7 @@ public static class ProfileCommandHandler
 			}
 			catch (Exception ex)
 			{
-				ConsoleHelper.WriteError($"Failed to verify SSH key with backend: {ex.Message}");
+				ConsoleHelper.WriteError($"Failed to verify SSH key with backend: {ex.Message}", ex);
 				Environment.Exit(1);
 			}
 		}

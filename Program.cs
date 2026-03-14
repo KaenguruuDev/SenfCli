@@ -21,8 +21,7 @@ public static class Program
 		}
 		catch (Exception e)
 		{
-			Logger.Error(e, "Unhandled exception while executing command.");
-			ConsoleHelper.WriteError($"An error occurred while executing your command: {e.Message}");
+			ConsoleHelper.WriteError($"An error occurred while executing your command: {e.Message}", e);
 		}
 		finally
 		{
