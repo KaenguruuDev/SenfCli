@@ -9,7 +9,8 @@ public static class Logger
     private static string? _logDir;
     private static string? _logFilePath;
     private static bool _initialized;
-    private static bool _enabled;
+
+    public static bool IsActive { get; private set; }
 
     public static void Initialize()
     {
@@ -36,8 +37,8 @@ public static class Logger
     {
         lock (Sync)
         {
-            _enabled = enabled;
-            if (_enabled && !_initialized)
+            IsActive = enabled;
+            if (IsActive && !_initialized)
                 Initialize();
         }
     }
@@ -66,7 +67,7 @@ public static class Logger
     {
         try
         {
-            if (!_enabled)
+            if (!IsActive)
                 return;
             EnsureInitialized();
             var timestamp = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz");

@@ -12,6 +12,9 @@ public static class Program
 		Logger.EnableFromEnvironment();
 		Logger.Info("Senf CLI started.");
 		Logger.Info($"Working directory: {Directory.GetCurrentDirectory()}");
+		if (Logger.IsActive)
+			ConsoleHelper.WriteWarning("SENF_LOG is enabled. Sensitive data will be written to .senf/logs/senf-*.log. Only use for debugging");
+		
 		try
 		{
 			await Cli.RunAsync<RootCommand>(args);

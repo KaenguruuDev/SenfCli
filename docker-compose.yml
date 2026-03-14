@@ -8,5 +8,6 @@ services:
     stdin_open: true
     tty: true
     environment:
-      SENF_LOG: "1"
+      SENF_LOG: 1
+      HOME: /work
     command: ["sleep", "infinity"]
