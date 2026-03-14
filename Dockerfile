@@ -4,6 +4,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work
-RUN git clone https://github.com/KaenguruuDev/SenfCli.git /work/cli
+COPY . /work/cli
 
 CMD ["sleep", "infinity"]
