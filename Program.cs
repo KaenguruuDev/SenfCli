@@ -11,10 +11,12 @@ public static class Program
 		Console.OutputEncoding = Encoding.UTF8;
 		Logger.EnableFromEnvironment();
 		Logger.Info("Senf CLI started.");
+		var invocation = args.Length == 0 ? "senf" : $"senf {string.Join(" ", args)}";
+		Logger.Info($"Invocation: {invocation}");
 		Logger.Info($"Working directory: {Directory.GetCurrentDirectory()}");
 		if (Logger.IsActive)
 			ConsoleHelper.WriteWarning("SENF_LOG is enabled. Sensitive data will be written to .senf/logs/senf-*.log. Only use for debugging");
-		
+
 		try
 		{
 			await Cli.RunAsync<RootCommand>(args);
