@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace SenfCli.Handlers;
 
 public static class ProfileCommandHandler
@@ -19,6 +17,12 @@ public static class ProfileCommandHandler
 		if (!string.IsNullOrEmpty(username))
 		{
 			profile.Username = username;
+			credentialsChanged = true;
+		}
+		
+		if (!string.IsNullOrEmpty(apiUrl))
+		{
+			profile.ApiUrl = apiUrl;
 			credentialsChanged = true;
 		}
 

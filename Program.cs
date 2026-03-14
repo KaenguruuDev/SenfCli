@@ -88,7 +88,7 @@ public class ProfileSetCommand
 	[CliOption(Description = "Path to SSH private key")]
 	public string? SshKey { get; set; }
 
-	[CliOption(Description = "API URL for the backend", Required = false)]
+	[CliOption(Description = "API URL for the backend")]
 	public string? ApiUrl { get; set; }
 
 	[CliOption(Description = "Set as default profile")]
