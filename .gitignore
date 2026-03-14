@@ -1,3 +1,7 @@
 .idea/
 obj/
 bin/
+*.user
+.codex/
+AGENTS.md
+.copilot/
