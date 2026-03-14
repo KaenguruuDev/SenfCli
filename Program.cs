@@ -9,13 +9,21 @@ public static class Program
 	public static async Task Main(string[] args)
 	{
 		Console.OutputEncoding = Encoding.UTF8;
+		Logger.EnableFromEnvironment();
+		Logger.Info("Senf CLI started.");
+		Logger.Info($"Working directory: {Directory.GetCurrentDirectory()}");
 		try
 		{
 			await Cli.RunAsync<RootCommand>(args);
 		}
 		catch (Exception e)
 		{
+			Logger.Error(e, "Unhandled exception while executing command.");
 			ConsoleHelper.WriteError($"An error occurred while executing your command: {e.Message}");
+		}
+		finally
+		{
+			Logger.Info("Senf CLI finished.");
 		}
 	}
 }

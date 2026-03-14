@@ -7,4 +7,6 @@ services:
     container_name: senf-cli
     stdin_open: true
     tty: true
+    environment:
+      SENF_LOG: "1"
     command: ["sleep", "infinity"]
