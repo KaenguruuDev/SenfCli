@@ -425,8 +425,8 @@ public class InviteCreateResponse
 	[JsonPropertyName("token")]
 	public string? Token { get; set; }
 
-	[JsonPropertyName("joinUrl")]
-	public string? JoinUrl { get; set; }
+	[JsonPropertyName("relativeJoinUrl")]
+	public string? RelativeJoinUrl { get; set; }
 
 	[JsonPropertyName("expiresAt")]
 	public DateTime ExpiresAt { get; set; }

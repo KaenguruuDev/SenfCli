@@ -16,14 +16,14 @@ public static class InviteCommandHandler
         var client = new SenfApiClient(profile.ApiUrl, authHandler);
 
         var response = await client.CreateInviteAsync();
-        if (response == null || string.IsNullOrWhiteSpace(response.JoinUrl) || string.IsNullOrWhiteSpace(response.Token))
+        if (response == null || string.IsNullOrWhiteSpace(response.RelativeJoinUrl) || string.IsNullOrWhiteSpace(response.Token))
         {
             ConsoleHelper.WriteError("Invite creation failed: no response from server.");
             Environment.Exit(1);
         }
 
         ConsoleHelper.WriteSuccess("Invite created successfully.");
-        ConsoleHelper.WriteInfo($"Invite Url: {response.JoinUrl}");
+        ConsoleHelper.WriteInfo($"Invite Url: {profile.ApiUrl}{response.RelativeJoinUrl}");
         var localExpiry = response.ExpiresAt.ToLocalTime();
         ConsoleHelper.WriteDetail(
             $"Share this link with the person you want to invite. This invite will expire at {localExpiry:yyyy-MM-dd HH:mm:ss}");
