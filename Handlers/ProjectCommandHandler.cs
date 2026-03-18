@@ -7,12 +7,7 @@ public static class ProjectCommandHandler
 		var config = Config.Load();
 		var project = config.GetCurrentProject();
 
-		if (project == null)
-		{
-			ConsoleHelper.WriteError("No project found for current directory.");
-			ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
-			Environment.Exit(1);
-		}
+		ConsoleHelper.ErrorIfProjectIsNull(project);
 
 		if (!string.IsNullOrEmpty(profileName) && !config.Profiles.ContainsKey(profileName))
 		{

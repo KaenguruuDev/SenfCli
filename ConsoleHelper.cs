@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace SenfCli;
 
 public static class ConsoleHelper
@@ -52,5 +54,15 @@ public static class ConsoleHelper
 		Console.ForegroundColor = ConsoleColor.DarkYellow;
 		Console.WriteLine($"❓ {message}");
 		Console.ResetColor();
+	}
+
+	public static void ErrorIfProjectIsNull([NotNull] ProjectConfig? project)
+	{
+		if (project != null)
+			return;
+
+		WriteError("No project found for current directory.");
+		WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
+		Environment.Exit(1);
 	}
 }

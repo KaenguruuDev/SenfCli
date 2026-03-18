@@ -9,12 +9,7 @@ public static class ShareCommandHandler
         var config = Config.Load();
         var project = config.GetCurrentProject();
 
-        if (project == null)
-        {
-            ConsoleHelper.WriteError("No project found for current directory.");
-            ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
-            Environment.Exit(1);
-        }
+        ConsoleHelper.ErrorIfProjectIsNull(project);
 
         var profile = LoadAndValidateProfileForProject(config, project);
         var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);
@@ -68,12 +63,7 @@ public static class ShareCommandHandler
         if (!showAll)
         {
             project = config.GetCurrentProject();
-            if (project == null)
-            {
-                ConsoleHelper.WriteError("No project found for current directory.");
-                ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
-                Environment.Exit(1);
-            }
+            ConsoleHelper.ErrorIfProjectIsNull(project);
         }
 
         var profile = showAll
@@ -137,12 +127,7 @@ public static class ShareCommandHandler
         var config = Config.Load();
         var project = config.GetCurrentProject();
 
-        if (project == null)
-        {
-            ConsoleHelper.WriteError("No project found for current directory.");
-            ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
-            Environment.Exit(1);
-        }
+        ConsoleHelper.ErrorIfProjectIsNull(project);
 
         var profile = LoadAndValidateProfileForProject(config, project);
         var authHandler = new SshAuthHandler(profile.SshKeyPath, profile.Username);

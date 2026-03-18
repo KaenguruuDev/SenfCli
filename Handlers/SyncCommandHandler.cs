@@ -44,19 +44,18 @@ public static class SyncCommandHandler
 	private static Dictionary<string, string?> ParseEnv(string content, out List<string> order)
 	{
 		var map = new Dictionary<string, string?>();
-		order = new List<string>();
-		using var reader = new StringReader(content ?? string.Empty);
-		string? line;
-		while ((line = reader.ReadLine()) != null)
+		order = [];
+		using var reader = new StringReader(content);
+		while (reader.ReadLine() is { } line)
 		{
 			line = line.Trim();
-			if (string.IsNullOrEmpty(line) || line.StartsWith("#"))
+			if (string.IsNullOrEmpty(line) || line.StartsWith('#'))
 				continue;
 			var idx = line.IndexOf('=');
 			if (idx <= 0)
 				continue;
-			var key = line.Substring(0, idx).Trim();
-			var val = line.Substring(idx + 1);
+			var key = line[..idx].Trim();
+			var val = line[(idx + 1)..];
 			if (!order.Contains(key)) order.Add(key);
 			map[key] = val;
 		}
@@ -69,12 +68,7 @@ public static class SyncCommandHandler
 		var config = Config.Load();
 		var project = config.GetCurrentProject();
 
-		if (project == null)
-		{
-			ConsoleHelper.WriteError("No project found for current directory.");
-			ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
-			Environment.Exit(1);
-		}
+		ConsoleHelper.ErrorIfProjectIsNull(project);
 
 		var profile = LoadAndValidateProfileForProject(config, project);
 		if (string.IsNullOrWhiteSpace(project.EnvPath) || !File.Exists(project.EnvPath))
@@ -183,12 +177,7 @@ public static class SyncCommandHandler
 		var config = Config.Load();
 		var project = config.GetCurrentProject();
 
-		if (project == null)
-		{
-			ConsoleHelper.WriteError("No project found for current directory.");
-			ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
-			Environment.Exit(1);
-		}
+		ConsoleHelper.ErrorIfProjectIsNull(project);
 
 		var profile = LoadAndValidateProfileForProject(config, project);
 		if (!File.Exists(profile.SshKeyPath))
@@ -257,12 +246,7 @@ public static class SyncCommandHandler
 		var config = Config.Load();
 		var project = config.GetCurrentProject();
 
-		if (project == null)
-		{
-			ConsoleHelper.WriteError("No project found for current directory.");
-			ConsoleHelper.WriteDetail("Run 'senf init [path-to-env] [project-name]' first.");
-			Environment.Exit(1);
-		}
+		ConsoleHelper.ErrorIfProjectIsNull(project);
 
 		var profile = LoadAndValidateProfileForProject(config, project);
 		if (string.IsNullOrWhiteSpace(project.EnvPath))
