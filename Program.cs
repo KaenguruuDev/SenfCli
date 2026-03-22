@@ -340,6 +340,9 @@ public class JoinCommand
 	[CliOption(Description = "Username to join as", Required = false)]
 	public string? Username { get; set; }
 
+	[CliOption(Description = "Name of the profile", Required = false)]
+	public string? ProfileName { get; set; }
+	
 	[CliOption(Description = "SSH public key (repeatable)", Required = false)]
 	public string[]? Key { get; set; }
 
@@ -347,6 +350,6 @@ public class JoinCommand
 	public string[]? KeyFile { get; set; }
 
 	public async Task RunAsync()
-		=> await JoinCommandHandler.Join(ApiUrl, Token, Username,
+		=> await JoinCommandHandler.Join(ApiUrl, Token, Username, ProfileName,
 			Key?.ToList(), KeyFile?.ToList());
 }

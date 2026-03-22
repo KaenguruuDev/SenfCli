@@ -8,23 +8,24 @@ namespace SenfCli.Handlers;
 
 public static class JoinCommandHandler
 {
-    public static async Task Join(string? apiUrl, string? token, string? username, List<string>? keys,
+    public static async Task Join(string? apiUrl, string? token, string? username, string profileName, List<string>? keys,
         List<string>? keyFiles)
     {
         var hasAnyFlag =
             !string.IsNullOrWhiteSpace(apiUrl) ||
             !string.IsNullOrWhiteSpace(token) ||
             !string.IsNullOrWhiteSpace(username) ||
-            (keys != null && keys.Count > 0) ||
-            (keyFiles != null && keyFiles.Count > 0);
+            !string.IsNullOrWhiteSpace(profileName) ||
+            keys is { Count: > 0 } ||
+            keyFiles is { Count: > 0 };
 
         if (hasAnyFlag)
-            await JoinWithFlags(apiUrl, token, username, keys, keyFiles);
+            await JoinWithFlags(apiUrl, token, username, profileName, keys, keyFiles);
         else
             await JoinInteractive();
     }
 
-    private static async Task JoinWithFlags(string? apiUrl, string? token, string? username, List<string>? keys,
+    private static async Task JoinWithFlags(string? apiUrl, string? token, string? username, string profileName, List<string>? keys,
         List<string>? keyFiles)
     {
         var missing = new List<string>();
@@ -35,6 +36,8 @@ public static class JoinCommandHandler
             missing.Add("--token");
         if (string.IsNullOrWhiteSpace(username))
             missing.Add("--username");
+        if (string.IsNullOrWhiteSpace(profileName))
+	        missing.Add("--profile-name");
 
         var publicKeys = new List<string>();
         if (keys != null)
@@ -42,21 +45,18 @@ public static class JoinCommandHandler
 
         if (keyFiles != null)
         {
-            foreach (var path in keyFiles)
-            {
-                if (string.IsNullOrWhiteSpace(path))
-                    continue;
+	        foreach (var path in keyFiles.Where(path => !string.IsNullOrWhiteSpace(path)))
+	        {
+		        if (!File.Exists(path))
+		        {
+			        ConsoleHelper.WriteError($"Public key file not found: {path}");
+			        Environment.Exit(1);
+		        }
 
-                if (!File.Exists(path))
-                {
-                    ConsoleHelper.WriteError($"Public key file not found: {path}");
-                    Environment.Exit(1);
-                }
-
-                var content = (await File.ReadAllTextAsync(path)).Trim();
-                if (!string.IsNullOrWhiteSpace(content))
-                    publicKeys.Add(content);
-            }
+		        var content = (await File.ReadAllTextAsync(path)).Trim();
+		        if (!string.IsNullOrWhiteSpace(content))
+			        publicKeys.Add(content);
+	        }
         }
 
         if (publicKeys.Count == 0)
@@ -89,6 +89,11 @@ public static class JoinCommandHandler
 
         ConsoleHelper.WriteSuccess($"Joined as '{response.Username ?? username}'.");
         ConsoleHelper.WriteDetail($"User ID: {response.UserId}");
+
+            // Initialize or update the profile after successful join
+            // Assume the first key file (if any) is the SSH key path
+            var sshKeyPath = keyFiles?.FirstOrDefault();
+            await ProfileCommandHandler.CreateOrUpdateProfile(profileName, username, sshKeyPath, apiUrl, setAsDefault: false);
     }
 
     private static async Task JoinInteractive()
@@ -116,6 +121,14 @@ public static class JoinCommandHandler
         {
             ConsoleHelper.WriteError("Username is required.");
             Environment.Exit(1);
+        }
+        
+        ConsoleHelper.Ask("Profile name: ");
+        var profileName = Console.ReadLine()?.Trim();
+        if (string.IsNullOrWhiteSpace(profileName))
+        {
+	        ConsoleHelper.WriteError("Profile name is required.");
+	        Environment.Exit(1);
         }
 
         var publicKeys = await PromptForPublicKeys(config);
@@ -145,6 +158,14 @@ public static class JoinCommandHandler
 
         ConsoleHelper.WriteSuccess($"Joined as '{response.Username ?? username}'.");
         ConsoleHelper.WriteDetail($"User ID: {response.UserId}");
+
+            // Initialize or update the profile after successful join
+            // Assume the first key from PromptForPublicKeys is the SSH key path if it was loaded from file
+            string? sshKeyPath = null;
+            // Try to extract the SSH key path from the config if the user selected from existing profiles
+            // Otherwise, leave as null
+            // (For a more robust solution, refactor PromptForPublicKeys to return key source info)
+            await ProfileCommandHandler.CreateOrUpdateProfile(profileName, username, sshKeyPath, apiUrl, setAsDefault: false);
     }
 
     private static string? GetDefaultApiUrl(Config config)

@@ -5,25 +5,26 @@ using System.Text.Json.Serialization;
 
 namespace SenfCli;
 
+
 public class SenfApiClient
 {
-	private static readonly HttpClient HttpClient = new();
+	private readonly HttpClient _httpClient;
 	private readonly string _apiUrl;
 	private readonly SshAuthHandler? _sshAuthHandler;
 
-	public SenfApiClient(string apiUrl, SshAuthHandler authHandler)
-	{
-		_apiUrl = apiUrl;
-		_sshAuthHandler = authHandler;
-		ConfigureBaseAddress(apiUrl);
-	}
+	       public SenfApiClient(string apiUrl, SshAuthHandler authHandler)
+	       {
+		       _apiUrl = apiUrl;
+		       _sshAuthHandler = authHandler;
+		       _httpClient = CreateHttpClient(apiUrl);
+	       }
 
-	public SenfApiClient(string apiUrl)
-	{
-		_apiUrl = apiUrl;
-		_sshAuthHandler = null;
-		ConfigureBaseAddress(apiUrl);
-	}
+	       public SenfApiClient(string apiUrl)
+	       {
+		       _apiUrl = apiUrl;
+		       _sshAuthHandler = null;
+		       _httpClient = CreateHttpClient(apiUrl);
+	       }
 
 	public async Task<EnvFileResponse?> GetEnvFileAsync(string name)
 	{
@@ -311,19 +312,19 @@ public class SenfApiClient
 		}
 	}
 
-	private async Task<HttpResponseMessage> SendWithAuthRetryAsync(Func<HttpRequestMessage> requestFactory)
-	{
-		EnsureAuthConfigured();
-		var request = requestFactory();
-		_sshAuthHandler!.AddAuthHeaders(request);
-		return await HttpClient.SendAsync(request);
-	}
+	       private async Task<HttpResponseMessage> SendWithAuthRetryAsync(Func<HttpRequestMessage> requestFactory)
+	       {
+		       EnsureAuthConfigured();
+		       var request = requestFactory();
+		       _sshAuthHandler!.AddAuthHeaders(request);
+		       return await _httpClient.SendAsync(request);
+	       }
 
-	private async Task<HttpResponseMessage> SendWithoutAuthAsync(Func<HttpRequestMessage> requestFactory)
-	{
-		var request = requestFactory();
-		return await HttpClient.SendAsync(request);
-	}
+	       private async Task<HttpResponseMessage> SendWithoutAuthAsync(Func<HttpRequestMessage> requestFactory)
+	       {
+		       var request = requestFactory();
+		       return await _httpClient.SendAsync(request);
+	       }
 
 	private void EnsureAuthConfigured()
 	{
@@ -331,16 +332,16 @@ public class SenfApiClient
 			throw new InvalidOperationException("This request requires SSH authentication.");
 	}
 
-	private static void ConfigureBaseAddress(string apiUrl)
-	{
-		if (!Uri.TryCreate(apiUrl, UriKind.Absolute, out var uri))
-			throw new InvalidOperationException("Invalid API URL.");
+	       private static HttpClient CreateHttpClient(string apiUrl)
+	       {
+		       if (!Uri.TryCreate(apiUrl, UriKind.Absolute, out var uri))
+			       throw new InvalidOperationException("Invalid API URL.");
 
-		if (uri.Scheme == Uri.UriSchemeHttp)
-			ConsoleHelper.WriteWarning("The connected profile is configured with an unsecured HTTP api.");
+		       if (uri.Scheme == Uri.UriSchemeHttp)
+			       ConsoleHelper.WriteWarning("The connected profile is configured with an unsecured HTTP api.");
 
-		HttpClient.BaseAddress = uri;
-	}
+		       return new HttpClient { BaseAddress = uri };
+	       }
 }
 
 public class SenfApiException(string message, HttpStatusCode statusCode, string responseBody)
